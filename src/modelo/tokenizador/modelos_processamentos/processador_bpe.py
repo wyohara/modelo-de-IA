@@ -46,7 +46,7 @@ class Processador_BPE:
             if caractere not in lista_char.keys() and caractere not in [' ', '\n']:
                 return caractere
 
-    def __aplicar_bpe(self,path:Path, caractere_chave:str, coringa:str):
+    def __aplicar_bpe(self,lista_bpe:defaultdict, path:Path, caractere_chave:str, coringa:str):
         '''
         Método principal que aplica o BPE: Carrega o texto e substitui o token mais comum pelo curinga
         em seguida conta suas ocorrencias do coringa e salva o o token+caractere seguinte
@@ -55,7 +55,6 @@ class Processador_BPE:
                 caractere_chave:str = caractere a ser substituido
                 coringa:str = caractere coringa a ser usado
         '''
-        lista_bpe = defaultdict()
         with open(str(path), encoding='utf-8') as f:
             texto = f.read()
 
@@ -72,8 +71,6 @@ class Processador_BPE:
                     except KeyError:
                         lista_bpe[str(caractere_chave)+str(texto[i+1:i+2])] = 1
         
-        #salva os dados como csv
-        self.__salvar_tokens_csv(list(lista_bpe.items()))
         return lista_bpe
     
     def __carregar_tokens_csv(self) -> pd.DataFrame:
@@ -120,18 +117,25 @@ class Processador_BPE:
         '''
         caracteres = self.__contar_caracteres_texto(path)
         coringa = self.__achar_caractere_coringa(caracteres)
+        df = self.__carregar_tokens_csv()
+        df = df.reset_index()
+        lista_bpe = defaultdict(int, df.values.tolist())
         
         set_processados = set()
         # faz um loop até o total de iterações solicitado +1 poi começa de 1, não 0
         for i in range(1,quantidade+1):
             #carrega o csv e ordena
-            df = self.__carregar_tokens_csv()
-            lista_valores = df.sort_values('valor', ascending=False).index.tolist()
-
+            chaves_ordenadas = sorted(lista_bpe, key=lista_bpe.get, reverse=True)
             # se não foi processado aplica o BPE
-            for char_chave in lista_valores:
+            for char_chave in chaves_ordenadas:
                 if char_chave not in set_processados:
-                    self.__aplicar_bpe(path, char_chave, coringa)
+                    percentil = quantidade/100.0          
+                    if int(i%percentil) ==0:
+                        print(f"\t>>> Processado {(i/quantidade)*100:.2f}% do texto {path.name}: {i} de {quantidade}")
+                    lista_bpe = self.__aplicar_bpe(lista_bpe, path, char_chave, coringa)
                     set_processados.add(char_chave)
                     break
+        
+        #salva os dados como csv
+        self.__salvar_tokens_csv(list(lista_bpe.items()))
         set_processados = set()
