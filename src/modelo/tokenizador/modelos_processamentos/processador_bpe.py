@@ -1,18 +1,23 @@
 from pathlib import Path
-import itertools
-from collections import Counter
 from collections import defaultdict
-from operator import itemgetter
 import pandas as pd
-import json
+import time
+import ast
 
 from src.ferramentas.ferramentas import texto_para_hex, hex_para_texto
 
 class Processador_BPE:
     def __init__(self):
-        self.__lista_tokens = Path('src/media/dados_processados/tokens.csv')
+        self.__lista_tokens = Path('src/media/dados_processados/tokens_bpe.csv')
 
-    def __contar_caracteres_texto(self, path:Path):
+    def __contar_caracteres_texto(self, path:Path)->defaultdict:
+        '''
+        Método que conta os caracteres do texto e salva em um default dict no formato: {chave:valor}
+            Params:
+                path: caminho até o arquivo
+            Return:
+                defaultdict: dicionário dos caracteres
+        '''
         lista_bpe = defaultdict()
         with open(str(path), encoding='utf-8') as f:
             texto = f.read()
@@ -21,85 +26,112 @@ class Processador_BPE:
                     lista_bpe[i]+=1
                 except KeyError:
                     lista_bpe[i]=1
+
+        #converte o dicionário em lista [(chave,valor)] para salvar em csv
         caracteres = list(lista_bpe.items())
-        self.__salvar_csv(caracteres)
+        self.__salvar_tokens_csv(caracteres)
         return lista_bpe
 
-    def __achar_caractere_coringa(self, caracteres:list)->str:        
+    def __achar_caractere_coringa(self, lista_char:defaultdict)->str:
+        '''
+        Método que percorre todas as possibilidades do utf-8 para achar um caractere não usado no texto.
+        Esse caractere será usado de curinga para marcar o BPE.
+        Params:
+            lista_char:defaultdict = dicionário com os caracteres e contagens
+        Return:
+            str: caractere não usado no texto
+        '''
         for codigo in range(32, int(0x10FFFF), 1):
             caractere = chr(codigo)
-            if caractere not in caracteres.keys() and caractere not in [' ', '\n']:
+            if caractere not in lista_char.keys() and caractere not in [' ', '\n']:
                 return caractere
 
-    def __contador_bpe(self,path:Path, caractere_chave:str, coringa:str):       
-        lista_bpe = defaultdict() 
+    def __aplicar_bpe(self,path:Path, caractere_chave:str, coringa:str):
+        '''
+        Método principal que aplica o BPE: Carrega o texto e substitui o token mais comum pelo curinga
+        em seguida conta suas ocorrencias do coringa e salva o o token+caractere seguinte
+            Params:
+                path:Path = Caminho do texto
+                caractere_chave:str = caractere a ser substituido
+                coringa:str = caractere coringa a ser usado
+        '''
+        lista_bpe = defaultdict()
         with open(str(path), encoding='utf-8') as f:
             texto = f.read()
-            texto = texto.replace(caractere_chave, coringa)
+
+            #substitui o token pelo coringa
+            texto = texto.replace(str(caractere_chave), coringa)
+
+            #percorre o texto procurando o coringa
+            # O -1 para não estourar o tamanho do texto
             for i in range(len(texto)-1):
                 if texto[i] == coringa:
+                    #caso ache o coringa, pega o token original e adiciona o próximo caractere no dicionário
                     try:
-                        lista_bpe[caractere_chave+texto[i+1:i+2]] += 1
+                        lista_bpe[str(caractere_chave)+str(texto[i+1:i+2])] += 1
                     except KeyError:
-                        lista_bpe[caractere_chave+texto[i+1:i+2]] = 1
-        self.__salvar_csv(list(lista_bpe.items()))
+                        lista_bpe[str(caractere_chave)+str(texto[i+1:i+2])] = 1
+        
+        #salva os dados como csv
+        self.__salvar_tokens_csv(list(lista_bpe.items()))
         return lista_bpe
     
-    def __abrir_csv(self) -> pd.DataFrame:
+    def __carregar_tokens_csv(self) -> pd.DataFrame:
+        '''
+        Métpdo acessório que carrega o dataframe no formato [chave/indice, valor]
+            Return:
+                pd.DataFrame = dataframe dos dados
+        '''
         try:
             df = pd.read_csv(str(self.__lista_tokens),index_col=0)
         except Exception as e:
             df = pd.DataFrame(columns=['valor'])
         return df
 
-    def __salvar_csv(self, dados:list):
-        df = self.__abrir_csv()
+    def __salvar_tokens_csv(self, dados:list):
+        '''
+        Método acessório que salva a lista de tokens em csv
+            Params:
+                dados:list = lista de dados a ser salvo no csv no formato [(chave, valor)]
+        '''
+        df = self.__carregar_tokens_csv()
+        #separa a coluna valor
         coluna_valor = df.columns[0]
+        #itera os dados para salvar os valores
         for chave, valor in dados:
-            if chave in df.index:
-                # Incrementa o valor existente
-                df.at[chave, coluna_valor] += valor
-            else:
-                df.loc[chave, coluna_valor] = valor
+            if chave and isinstance(chave, str):
+                #salva/incrementa os tokens
+                if chave in df.index:
+                    df.at[chave, coluna_valor] += valor
+                else:
+                    df.loc[chave, coluna_valor] = valor
 
         #cria a coluna chave e ordena por valor do maior para o menor
         df.index.name = 'chave'
         df_ordenado = df.sort_values(by=df.columns[0], ascending=False)
         df_ordenado.to_csv(str(self.__lista_tokens))
 
-    def processar_texto(self, path_texto:Path, quantidade=150000):
-        caracteres = self.__contar_caracteres_texto(path_texto)
+    def processar_texto(self, path:Path, quantidade=150000):
+        '''
+        Método principal do processador de texto. Percorre a quantidade de vezes para fazer o BPE
+            Params:
+                path:Path = Caminho até o arquivo
+                quantidade: int = número de iterações para gerar os tokens. Padrão 150000
+        '''
+        caracteres = self.__contar_caracteres_texto(path)
         coringa = self.__achar_caractere_coringa(caracteres)
-
-        set_processados = set(self.__carregar_posicao()[1])
-        pos =self.__carregar_posicao()[0]
+        
+        set_processados = set()
+        # faz um loop até o total de iterações solicitado +1 poi começa de 1, não 0
         for i in range(1,quantidade+1):
-            try:
-                if i>pos:
-                    df = self.__abrir_csv()
-                    df = df.sort_values(by=df.columns[0], ascending=False)
-                    df = df.reset_index()
-                    for valor_livre in df.values.tolist():
-                        char_chave = valor_livre[0]
+            #carrega o csv e ordena
+            df = self.__carregar_tokens_csv()
+            lista_valores = df.sort_values('valor', ascending=False).index.tolist()
 
-                        if char_chave not in set_processados and isinstance(char_chave, str) and len(char_chave)>0:
-                            self.__contador_bpe(path_texto, char_chave, coringa)
-                            set_processados.add(char_chave)
-            except KeyboardInterrupt:
-                self.__salvar_posicao(i,set_processados)
-                import gc
-                gc.collect()
-
-
-    def __salvar_posicao(self, loop:int, set_list:set ):
-        dados = {'loop':loop, 'set_list':list(set_list)}
-        with open('src/media/dados_processados/pos.json', 'w', encoding='utf-8') as f:
-            json.dump(dados, f, indent=4, ensure_ascii=False)
-    
-    def __carregar_posicao(self)->list[int,list]:
-        try:
-            with open('src/media/dados_processados/pos.json', 'r', encoding='utf-8') as f:
-                dados = json.load(f)
-                return [dados['loop'], dados['set_list']]
-        except Exception as e:
-            return [-1,[]]
+            # se não foi processado aplica o BPE
+            for char_chave in lista_valores:
+                if char_chave not in set_processados:
+                    self.__aplicar_bpe(path, char_chave, coringa)
+                    set_processados.add(char_chave)
+                    break
+        set_processados = set()
