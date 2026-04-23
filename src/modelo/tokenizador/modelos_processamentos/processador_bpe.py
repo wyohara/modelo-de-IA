@@ -4,11 +4,11 @@ import pandas as pd
 import time
 import ast
 
-from src.ferramentas.ferramentas import texto_para_hex, hex_para_texto
+from src.ferramentas.ferramentas import texto_para_hex, hex_para_texto, medir_tempo
 
 class Processador_BPE:
     def __init__(self):
-        self.__lista_tokens = Path('src/media/dados_processados/tokens_bpe.csv')
+        self.__path_tokens = Path('src/media/dados_processados/tokens_bpe.csv')
         self.__savepoint = Path('src/media/dados_processados/savepoint_bpe.csv')
         self.__texto = ''
 
@@ -113,33 +113,21 @@ class Processador_BPE:
                 pd.DataFrame = dataframe dos dados
         '''
         try:
-            df = pd.read_csv(str(self.__lista_tokens),index_col=0)
+            df = pd.read_csv(str(self.__path_tokens),index_col=0)
         except Exception as e:
             df = pd.DataFrame(columns=['valor'])
         return df
 
-    def __salvar_tokens_csv(self, dados:list):
+    def __salvar_tokens_csv(self, dados:defaultdict):
         '''
         Método acessório que salva a lista de tokens em csv
             Params:
                 dados:list = lista de dados a ser salvo no csv no formato [(chave, valor)]
         '''
-        df = pd.DataFrame(columns=['valor'])
-        #separa a coluna valor
-        coluna_valor = df.columns[0]
-        #itera os dados para salvar os valores
-        for chave, valor in dados:
-            if chave and isinstance(chave, str):
-                #salva/incrementa os tokens
-                if chave in df.index:
-                    df.at[chave, coluna_valor] += valor
-                else:
-                    df.loc[chave, coluna_valor] = valor
 
-        #cria a coluna chave e ordena por valor do maior para o menor
-        df.index.name = 'chave'
-        df_ordenado = df.sort_values(by=df.columns[0], ascending=False)
-        df_ordenado.to_csv(str(self.__lista_tokens))
+        df = pd.DataFrame(list(dados.items()), columns=['chave', 'valor'])
+        df_ordenado = df.sort_values(by='valor', ascending=False)
+        df_ordenado.to_csv(self.__path_tokens, index=False)
 
     def __unir_dicionarios(self, dict_adicional:dict, dict_saida:dict)->dict:
         """
@@ -188,10 +176,8 @@ class Processador_BPE:
                         percentil = quantidade/100.0          
                         if int(i%percentil) ==0:
                             print(f"\t>>> Processado {(i/quantidade)*100:.2f}% do texto {path.name}: {i} de {quantidade}")
-                            self.__salvar_tokens_csv(list(lista_bpe.items()))
+                            self.__salvar_tokens_csv(lista_bpe)
                             self.__marcar_savepoint(i, tk_set)
-                            import gc
-                            gc.collect()
                         lista_bpe = self.__aplicar_bpe_palavra(lista_bpe, path, char_chave, coringa)
                         tk_set.add(char_chave)
                         break
@@ -213,7 +199,7 @@ class Processador_BPE:
         #itera os dados para salvar os valores
         lista_save = []
         for i in setlist:
-            lista_save.append(texto_para_hex(i))
+            lista_save.append(texto_para_hex(str(i)))
 
         df.loc['setlist', coluna_valor] = str(lista_save)
         df.loc['pos', coluna_valor] = str(pos)
