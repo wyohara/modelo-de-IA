@@ -10,6 +10,7 @@ class Processador_BPE:
     def __init__(self):
         self.__lista_tokens = Path('src/media/dados_processados/tokens_bpe.csv')
         self.__savepoint = Path('src/media/dados_processados/savepoint_bpe.csv')
+        self.__texto = ''
 
     def __contar_caracteres(self, path:Path)->defaultdict:
         '''
@@ -69,7 +70,42 @@ class Processador_BPE:
                         lista_bpe[str(caractere_chave)+str(texto[i+1:i+2])] = 1
         
         return lista_bpe
-    
+
+    def __aplicar_bpe_palavra(self,lista_bpe:defaultdict, path:Path, caractere_chave:str, coringa:str):
+        '''
+        Método principal que aplica o BPE: Carrega o texto e substitui o token mais comum pelo curinga
+        em seguida conta suas ocorrencias do coringa e salva o o token+caractere seguinte
+            Params:
+                path:Path = Caminho do texto
+                caractere_chave:str = caractere a ser substituido
+                coringa:str = caractere coringa a ser usado
+        '''
+        caractere_chave = str(caractere_chave)
+        coringa = str(coringa)
+        if not self.__texto:
+            with open(str(path), encoding='utf-8') as f:
+                self.__texto = f.read()
+        
+        texto = self.__texto
+
+        palavras = texto.strip().split()
+        palavras = sorted(palavras, key=len, reverse=True)
+
+        #substitui o token pelo coringa
+        for palavra in palavras:
+            if len(palavra)>len(caractere_chave):
+                palavra = palavra.replace(caractere_chave, coringa)
+                if (coringa in palavra):
+                    #o -1 é para evitar estourar o buffer
+                    for i in range(len(palavra)-1):
+                        if palavra[i] == coringa:
+                            #caso ache o coringa, pega o token original e adiciona o próximo caractere no dicionário
+                            try:
+                                lista_bpe[caractere_chave+str(palavra[i+1:i+2])] += 1
+                            except KeyError:
+                                lista_bpe[caractere_chave+str(palavra[i+1:i+2])] = 1        
+        return lista_bpe
+
     def __carregar_tokens_csv(self) -> pd.DataFrame:
         '''
         Métpdo acessório que carrega o dataframe no formato [chave/indice, valor]
@@ -154,12 +190,16 @@ class Processador_BPE:
                             print(f"\t>>> Processado {(i/quantidade)*100:.2f}% do texto {path.name}: {i} de {quantidade}")
                             self.__salvar_tokens_csv(list(lista_bpe.items()))
                             self.__marcar_savepoint(i, tk_set)
-                        lista_bpe = self.__aplicar_bpe(lista_bpe, path, char_chave, coringa)
+                            import gc
+                            gc.collect()
+                        lista_bpe = self.__aplicar_bpe_palavra(lista_bpe, path, char_chave, coringa)
                         tk_set.add(char_chave)
                         break
-        
-        #salva os dados como csv
+        #reseta dados
+        self.__texto = ''
         self.__marcar_savepoint(-1,set())
+
+        #salva os dados como csv
         self.__salvar_tokens_csv(list(lista_bpe.items()))
         tk_set = set()
     
@@ -171,7 +211,11 @@ class Processador_BPE:
         coluna_valor = df.columns[0]
         df.index.name = 'chave'
         #itera os dados para salvar os valores
-        df.loc['setlist', coluna_valor] = str(set(setlist))
+        lista_save = []
+        for i in setlist:
+            lista_save.append(texto_para_hex(i))
+
+        df.loc['setlist', coluna_valor] = str(lista_save)
         df.loc['pos', coluna_valor] = str(pos)
         df.to_csv(str(self.__savepoint))
     
@@ -181,11 +225,17 @@ class Processador_BPE:
             coluna_valor = df.columns[0]
             pos_str = df.loc['pos', coluna_valor]
             setlist_str = df.loc['setlist', coluna_valor]
-            return int(pos_str), ast.literal_eval(setlist_str)
+            
+            lista_set = []
+            for i in ast.literal_eval(setlist_str):
+                lista_set.append(hex_para_texto(i))
+
+            return int(pos_str), set(lista_set)
         except FileNotFoundError as e:
             return -1, set()
 
     def get_tokens(self):
         df = self.__carregar_tokens_csv()
-        df.insert(0, 'id', range(1, len(df) + 1))
-        return df.sort_values('valor', ascending=False)
+        df.insert(0, 'id', range(1, len(df) + 1))    
+        df = df.reset_index()    
+        return df.sort_values('valor', ascending=False).values.tolist()

@@ -2,7 +2,7 @@
 import os
 import subprocess
 
-from src.app import processar_arquivos
+from src.app import processar_arquivos, tokenizar, embeding
 
 if __name__ == "__main__":
     try:
@@ -62,5 +62,13 @@ if __name__ == "__main__":
                 # Executa todos os testes da pasta padrão
                 comando = ["pytest", "-s", "-vv", ".\\src\\testes\\"]            
             subprocess.run(comando)  # mais seguro que os.system
+        elif args.modo == 'tokenizador':
+            print("🔧 Executando Tokenizador...")
+            tokenizar()
+
+        elif args.modo == 'embeding':
+            print("🔧 Executando teste de embeding...")
+            embeding()
+
         else:
             processar_arquivos()
