@@ -124,8 +124,14 @@ class Processador_BPE:
             Params:
                 dados:list = lista de dados a ser salvo no csv no formato [(chave, valor)]
         '''
+        if isinstance(dados, defaultdict):
+            dados_lista =list(dados.items())
+        elif isinstance(dados, list):
+            dados_lista = dados
+        else:
+            print(type(dados))
 
-        df = pd.DataFrame(list(dados.items()), columns=['chave', 'valor'])
+        df = pd.DataFrame(dados_lista, columns=['chave', 'valor'])
         df_ordenado = df.sort_values(by='valor', ascending=False)
         df_ordenado.to_csv(self.__path_tokens, index=False)
 

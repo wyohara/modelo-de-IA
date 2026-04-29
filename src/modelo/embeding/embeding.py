@@ -1,9 +1,9 @@
 import numpy as np
 
-from src.modelo.tensor.original.tensor import Tensor
-from src.modelo.tensor.original.tensor_foward import TensorFoward
-from src.modelo.tensor.original.tensor_backward import TensorBackward
-from src.modelo.tensor.original.ferramentas import Ferramentas
+from src.modelo.tensor.rope.tensor import Tensor
+from src.modelo.tensor.rope.tensor_foward import TensorFoward
+from src.modelo.tensor.rope.tensor_backward import TensorBackward
+from src.modelo.tensor.rope.ferramentas import Ferramentas
 
 class Embeding():
     def __init__(self):
