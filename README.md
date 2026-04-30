@@ -35,12 +35,26 @@ A função atenção é uma consulta (Query) em um padrão Chave-Valor (Key-Valu
 $$Att(K,Q,V) = \frac{softmax(Q * K^{t})}{\sqrt{d_k}}V$$
 
 No multihead attention buscamos fazer uma relação linear onde aprendemos de diferentes perspectivas e concatenamos o resultado de Q e K e por fim concatenamos com V e ao fim aplicamos os pesos W:  
+
 $$MultiHead(K, Q, V) = Concatenar(head_1, ..., head_n)* W$$
+
 Onde head é:  
 
 $$head=Att(QW^q, KW^k, VW^v)$$
 
-O custo computacional de usar cabeças paralelas tem valor parecido com o processamento de uma única cabeça com as dimensões totais de cabeças.
+O custo computacional de usar cabeças paralelas tem valor parecido com o processamento de uma única cabeça com as dimensões totais de cabeças.  
+
+### Um pouco de prática
+- Aqui podemos ver a primeira etapa do tensor onde criamos um modelo básico com Q, K, V e O: [aqui](/doc/aprendendo_tensor/tensor_1.py), basta executar `python doc/aprendendo_tensor/tensor_1.py`.  
+- Prosseguindo com os modelos, aqui temos a propagação do resultado usando dados ficticios.
+    - No fluxo normal o texto é convertido em tokens passa por um processo de embeding.
+    - No embeding os tokens se tornam vetores multidimensionais com tamanho `(batch, tam_sequencia, dim)`:
+        - `batch` é a quantidade de sequências de valores independentes que são processados simultaneamente, assim ao invés de processar 10 frases em um loop adiciona a dimensão batch para processar as frases simultaneamente
+        - `tam_sequencia` é o numero de tokens usados simultaneamente em cada batch
+        - `dim` é o a dimensionalidade de cada token usado no embeding
+    - Após passar pelo tensor a representação do embeding se torna um novo vetor de mesmo formato, podendo passar por um novo tensor ou ser decodificado.
+    - Por fim o vetor resultado pode passar por um decodificador gerando texto, um classificador ou mesmo ir para outro tensor
+    - O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_2.py), basta executar `python doc/aprendendo_tensor/tensor_2.py`.  
 
 
 
