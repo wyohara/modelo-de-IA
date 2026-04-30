@@ -1,11 +1,19 @@
 
 # Modelo básico de IA para estudo  
 
-Este é um projeto de um tensor para modelo de inteligência artificial basico para estudo. O modelo usa como base um tensor básico inicialmente pensado segundo o paper "Attention is all you need" [aqui](/bibliografia/Attention_is_all_you_need.pdf). Segundo o paper foi proposto um modelo de tensores com as características:  
+Este é um projeto de um tensor para modelo de inteligência artificial basico para estudo. O modelo usa como base um tensor básico inicialmente pensado segundo o artigo "Attention is all you need" [(aqui)](/bibliografia/Attention_is_all_you_need.pdf).  
+
+## O Tensor  
+
+Segundo o artigo foi proposto um modelo de tensor simplificando o modelo de rede neural e a otimizando. Suas principais características são:  
 - Modelos convolucionais e redes recorrentes, tem em comum a implementação de um modelo de atenção, então foi proposto um modelo focado em atenção, chamado **tensor**.
 - Ele ajuda a corrigir o problema de relacionar sinais distantes que possuem muita relação, o que antes era custoso passa a ser mais fácil.
     - Para isso é utilizado o mecanismo de autoatenção onde faz uma média ponderada de um valor com os demais valores a fim de determinar as relações próximas (valores maiores). Porém isso tem um custo.
-    - Quanto mais sinais são usados nos tensores, mais diluída se torna a média ponderada. Para isso foi criado o **multi-head attention (atenção multicabeça)** onde cada cabeça aprende as relações de forma diferente e no fim são concatenadas linearmente, melhorando a diluição da média ponderada.
+    - Quanto mais sinais são usados nos tensores, mais diluída se torna a média ponderada. Para isso foi criado o **multi-head attention (atenção multicabeça)** onde cada cabeça aprende as relações de forma diferente e no fim são concatenadas linearmente, melhorando a diluição da média ponderada.  
+
+
+### Estrutura do tensor  
+
 - A estrutura do tensor segue o modelo padrão codificador/decodificador:
     - **O codificador** é uma pilha de camadas com duas subcamadas:
         - Camada de atenção - captura as relações entre as palavras
@@ -19,13 +27,19 @@ Este é um projeto de um tensor para modelo de inteligência artificial basico p
         - A um bloqueio impedindo que os dados cruzados do codificador alterem o decodificador
 OBS no modelo original do paper havia o embeding, 6 camadas do codificador e 6 camadas do decodificador com 512 dimensões.  
 
-## O que é atenção?
+
+###  O que é atenção?
+
 A função atenção é uma consulta (Query) em um padrão Chave-Valor (Key-Value),  onde a saída é uma ponderação dos valores da Consulta (K) e a Chave (K). Tradicionalmente a atenção era feita pro produto escalar escalonado com muitas consultas e chaves empacotadas em uma função softmax. Porém isso pode impactar a magnitude, devido a multiplicação, então reduzimos a magnitude dividindo por $\sqrt{d_k}$ que é o total de dimensão das chaves:  
+
 $$Att(K,Q,V) = \frac{softmax(Q * K^{t})}{\sqrt{d_k}}V$$
+
 No multihead attention buscamos fazer uma relação linear onde aprendemos de diferentes perspectivas e concatenamos o resultado de Q e K e por fim concatenamos com V e ao fim aplicamos os pesos W:  
-$$MultiHead(K, Q, V) = Concatenar(head_1, ... head_n)* W$$
+$$MultiHead(K, Q, V) = Concatenar(head_1, ..., head_n)* W$$
 Onde head é:  
+
 $$head=Att(QW^q, KW^k, VW^v)$$
+
 O custo computacional de usar cabeças paralelas tem valor parecido com o processamento de uma única cabeça com as dimensões totais de cabeças.
 
 
