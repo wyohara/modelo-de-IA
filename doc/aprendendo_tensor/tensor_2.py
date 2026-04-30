@@ -17,7 +17,7 @@ def calcular_atencao(Q, K, V):
     # A transposição ocorre somente na dim_model e dim_k.
     # Isso resulta em uma matriz quadrada
     score_QK = Q @ K.transpose(0,2,1)   # (..., seq_q, seq_k)
-    atencao_normalizada = softmax(score_QK, axis=-1)/ np.sqrt(dim_k)
+    atencao_normalizada = softmax(score_QK, axis=-1/ np.sqrt(dim_k))
     saida = atencao_normalizada @ V
     return saida, atencao_normalizada
 
