@@ -19,7 +19,7 @@ As principais características são:
 - A estrutura do tensor segue o modelo padrão codificador/decodificador:
     - **O codificador** é uma pilha de camadas com duas subcamadas:
         - `autoatenção` - captura as relações entre as palavras
-        - `feed foward` - uma camada pequena de rede neural usando ReLu que permite transformaçoes complexas não lineares
+        - `feed foward` - uma camada pequena de rede neural usando ReLU que permite transformaçoes complexas não lineares
         - Entre essas subcamadas há uma conexão residual para transformações (feed foward)  e normalização (LayerNorm)
         - Fórmula (pré‑LayerNorm): `saída = LayerNorm(entrada + Autoatenção(entrada))` e `saída_final = LayerNorm(saída_parcial + FeedForward(saída_parcial))`.
     - **O decodificador** são uma sequencia de camadas iguais com 3 subcamadas:
@@ -50,10 +50,23 @@ $$head=Att(QW^q, KW^k, VW^v)$$
 
 O custo computacional de usar cabeças paralelas tem valor parecido com o processamento de uma única cabeça com as dimensões totais de cabeças.  
 
+### Feed foward no modelo do tensor
+Até o momento o modelo do tensor sofreu apenas multiplicações de vetores, ou seja transformações lineares, o que torna o resultado da atenção um resultado linear que poderia ser simplificado em uma única transformação linear. Assim é preciso adicionar uma não linearidade ao modelo permitindo criar mais possibilidades. Para isso usamos uma rede feed foward completamente conectada com a saída do modelo de atenção e uma função ReLU.
+- A rede feed foward consiste em uma operação de pesos (W) e bias(b) de uma rede neural tradicional e usa a fórmula $FFN(x) = max(0, xW_1 + b_1) W_2 + b_2$ .
+- A função ReLU consiste em zerar os valores negativos do resultado do feed foward, gerando valores esparsos, criando agregações (clusters), além de favorecer a generalização.
+
+#### Por que ReLU?
+ReLU é uma operação computacionalmente barata `max(0, x)` que adiciona não linearidade e esparsidade (tende a zerar metade das ativações) diminuindo o risco de treinamento excessivo (overfitting), além de favorecer a generalização. A função ReLU, possui derivada 1 quando x>0, logo o gradiente se mantém constante se for positivo, assim evitamos perdas do gradiente a medida que aumentamos a quantidade de tensores.
+Soft ReLU é computacionalmente mais cara e mantém um pequeno valor negativo o que reduz a esparsidade, a um custo computacional maior, o que pode melhorar o desempenho dependendo da situação. Hoje com o uso mais eficiente das CPU e GPU o custo da soft ReLU é menor, mas os ganhos ainda são pequenos, sendo uteis apenas em modelos maiores como  BERT, GPT-2/3. No fim cabe a você definir o melhor uso e aplicar de acordo com sua capacidade computacional.  
+
 ### Um pouco de prática
+
+#### 1 - Implementação bpasica do tensor
 - Aqui podemos ver a primeira etapa do tensor onde criamos um modelo básico com Q, K, V e O.
     - O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_1.py), basta executar `python doc/aprendendo_tensor/tensor_1.py`.  
-- Prosseguindo com os modelos, aqui temos a propagação do resultado usando dados ficticios.
+
+#### 2 - Implementação básica da atenção
+- Prosseguindo com o modelo, aqui temos a propagação do resultado usando dados ficticios.
     - No fluxo normal o texto é convertido em tokens passa por um processo de embeding.
     - No embeding os tokens se tornam vetores multidimensionais com tamanho `(batch, tam_sequencia, dim)`:
         - `batch` é a quantidade de sequências de valores independentes que são processados simultaneamente, assim ao invés de processar 10 frases em um loop adiciona a dimensão batch para processar as frases simultaneamente
@@ -62,6 +75,13 @@ O custo computacional de usar cabeças paralelas tem valor parecido com o proces
     - Após passar pelo tensor a representação do embeding se torna um novo vetor de mesmo formato, podendo passar por um novo tensor ou ser decodificado.
     - Por fim o vetor resultado pode passar por um decodificador gerando texto, um classificador ou mesmo ir para outro tensor
     - O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_2.py), basta executar `python doc/aprendendo_tensor/tensor_2.py`.  
+
+#### 3 - implementação básica do feed foward
+- Apos implementar a atenção, inserimos o feed foward com a função ReLU.
+    - Consiste em dois pesos e bias completamente conectados com a saída da atenção aplicando a função ReLU $FFN(x) = max(0, xW_1 + b_1) W_2 + b_2$ 
+    - Também foi implementado outras funções de ativação caso queiram testar.
+- O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_3.py), basta executar `python doc/aprendendo_tensor/tensor_3.py`.  
+
 
 
 
