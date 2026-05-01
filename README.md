@@ -11,7 +11,7 @@ As principais características são:
 - A autoatenção calcula uma soma ponderada dos valores (V), onde os pesos (ou atenção) são obtidos pela relação entre queries (Q) e keys (K). Quanto maior o peso, maior a relevância daquele elemento para o contexto.
 - Para evitar que os pesos fiquem muito atenuados em sequências longas e para permitir que o modelo aprenda diferentes tipos de relações entre os dados, utiliza-se a atenção multicabeça ou **multi-head attention**:
     - múltiplas cabeças de atenção paralelas, cada uma projetada para subespaços dimensional diferente.
-    - As saídas são concatenadas e projetadas linearmente, aumentando  os diferentes modos de visão e representação dos dados.
+    - As saídas são concatenadas e projetadas linearmente, aumentando  os diferentes modos de visão e representação dos dados.  
 
 
 ### Estrutura do tensor  
@@ -29,10 +29,19 @@ As principais características são:
         - Existe uma máscara que impede a autoatenção do decodificador de ver os tokens gerados aumentando a casualidade
 OBS no modelo original do paper havia o embeding, 6 camadas do codificador e 6 camadas do decodificador e com 512 dimensões de modelo dim_model.  
 
+![Modelo do tensor](/bibliografia/imagens/tensor_0.png)
 
-###  O que é atenção?
+---
+###  O que é atenção?  
 
-A função atenção é uma consulta (Query) em um padrão Chave-Valor (Key-Value),  onde a saída é uma soma ponderada dos valores V dados pelos pesos  que são a compatibilidade da Consulta (Q) e a Chave (K). O tensor utiliza como fórmula o **produto escalar escalonado** com formula:  
+
+A função atenção é uma consulta (Query) em um padrão Chave-Valor (Key-Value),  onde a saída é uma soma ponderada dos valores V dados pelos pesos  que são a compatibilidade da Consulta (Q) e a Chave (K).  
+
+
+![Modelo do tensor](/bibliografia/imagens/tensor_1.png)
+
+
+O tensor utiliza como fórmula o **produto escalar escalonado** com formula:  
 
 $$
 Att(K,Q,V) = softmax(\frac{Q * K^{t}}{\sqrt{d_k}})V
@@ -50,22 +59,34 @@ $$head=Att(QW^q, KW^k, VW^v)$$
 
 O custo computacional de usar cabeças paralelas tem valor parecido com o processamento de uma única cabeça com as dimensões totais de cabeças.  
 
+---
 ### Feed foward no modelo do tensor
-Até o momento o modelo do tensor sofreu apenas multiplicações de vetores, ou seja transformações lineares, o que torna o resultado da atenção um resultado linear que poderia ser simplificado em uma única transformação linear. Assim é preciso adicionar uma não linearidade ao modelo permitindo criar mais possibilidades. Para isso usamos uma rede feed foward completamente conectada com a saída do modelo de atenção e uma função ReLU.
+Até o momento o modelo do tensor sofreu apenas multiplicações de vetores, ou seja transformações lineares, o que torna o resultado da atenção um resultado linear que poderia ser simplificado em uma única transformação linear. Assim é preciso adicionar uma não linearidade ao modelo permitindo criar mais possibilidades. Para isso usamos uma rede feed foward completamente conectada com a saída do modelo de atenção e uma função ReLU.  
+
+![Modelo do tensor](/bibliografia/imagens/tensor_2.png)
+
 - A rede feed foward consiste em uma operação de pesos (W) e bias(b) de uma rede neural tradicional e usa a fórmula $FFN(x) = max(0, xW_1 + b_1) W_2 + b_2$ .
-- A função ReLU consiste em zerar os valores negativos do resultado do feed foward, gerando valores esparsos, criando agregações (clusters), além de favorecer a generalização.
+- A função ReLU consiste em zerar os valores negativos do resultado do feed foward, gerando valores esparsos, criando agregações (clusters), além de favorecer a generalização.  
 
 #### Por que ReLU?
 ReLU é uma operação computacionalmente barata `max(0, x)` que adiciona não linearidade e esparsidade (tende a zerar metade das ativações) diminuindo o risco de treinamento excessivo (overfitting), além de favorecer a generalização. A função ReLU, possui derivada 1 quando x>0, logo o gradiente se mantém constante se for positivo, assim evitamos perdas do gradiente a medida que aumentamos a quantidade de tensores.
 Soft ReLU é computacionalmente mais cara e mantém um pequeno valor negativo o que reduz a esparsidade, a um custo computacional maior, o que pode melhorar o desempenho dependendo da situação. Hoje com o uso mais eficiente das CPU e GPU o custo da soft ReLU é menor, mas os ganhos ainda são pequenos, sendo uteis apenas em modelos maiores como  BERT, GPT-2/3. No fim cabe a você definir o melhor uso e aplicar de acordo com sua capacidade computacional.  
 
+
+---
 ### Aplicando o embedding
 O computador não entende palavras, ele entende apenas números, então as palavras são convertidas em números com dimensões fixas, no caso `dim_model=512` no artigo original. O embedding ocorre na **entrada do codificador**, convertendo o texto em um vetor de embedding e no **embedding de saída** que transforma os tokens recebidos em vetores (como no caso de tradução ou recebendo dados de outro tensor).  
 
-Outro ponto importante onde se usa o embeding é na saída linear do output, onde se usa a matriz de embedding, com formato (tam_vocabulario, dim_model),  para fazer uma transformação linear da saída do decodificador. Ao fazer `saida_tensor @ matriz_embedding.T` geramos uma aproximação da saída do decodificador com o nosso vocabulário, com formato (batch, compr_seq, tam_vocabulario)que ao usar softmax  vira uma probabilidade de equivaler a um token.
+![Modelo do tensor](/bibliografia/imagens/tensor_3.png)
 
+Outro ponto importante onde se usa o embeding é na saída linear do output, que será melhor explicado [aqui.](/README.md#gerando-o-output)
+
+---
 ### Codificação posicional
-O tensor não possui uma ordenação na entrada dos dados, todos os dados são lidos e processados simultaneamente, assim precisamos de um meio de adicionar aos dados uma um posicionamento relativo. Tensores trabalham apenas com atenção e feed foward o que significa que a troca de posição de dados não altera o resultado, assim foi criado a codificação posicional.
+O tensor não possui uma ordenação na entrada dos dados, todos os dados são lidos e processados simultaneamente, assim precisamos de um meio de adicionar aos dados uma um posicionamento relativo. Tensores trabalham apenas com atenção e feed foward o que significa que a troca de posição de dados não altera o resultado, assim foi criado a codificação posicional.  
+
+![Modelo do tensor](/bibliografia/imagens/tensor_4.png)
+
 A codificação posicional pode ser feita de 2 modos:
 - codificação aprendida, onde é treinado um modelo que cria uma matriz de posição (`max_len x dim_model`). Esta abordagem é simples porém não consegue generalizar para tamanhos maiores que o original.
 - codificação fixa - é usada uma fórmula para calcular a posição. No artigo original é usada essa abordagem.
@@ -81,7 +102,15 @@ PE(pos, 2i+1) = cos( pos / 10000^{2\frac{i}{dim_{model}}} )
 
 $$
 Sendo `pos` a posição na sequencia de tokens, `i` a dimensão do dim_model (i entre 0 e dim_model), `2i` e `2i+1` significa que as posições pares recebem seno e as ímpares cosseno.  
-Com base nessa codificação o comprimento da onda seno e cosseno varia de `2π` na posição 0 a `10000*2π`. O valor 10000 foi arbitrário e pode ser usado outro valor.
+Com base nessa codificação o comprimento da onda seno e cosseno varia de `2π` na posição 0 a `10000*2π`. O valor 10000 foi arbitrário e pode ser usado outro valor.  
+
+---
+### Gerando o output  
+Para a geração de saída de dados ocorre uma etapa de projeção linear da saída do tensor com a matriz de embedding, (tam_vocabulario, dim_model). Ao fazer `saida_tensor @ matriz_embedding.T` geramos um `logits` projeção entre o resultado do tensor e a matriz de embedding do nosso vocabulário, com formato (batch, compr_seq, tam_vocabulario). 
+
+![Modelo do tensor](/bibliografia/imagens/tensor_5.png)
+
+O logits por sua vez é aplicado uma função `softmax`, transformando-o em  uma matriz de probabilidades de de vocabulario. Assim podemos escolher o resultado que mais se aproxima de um token, normalmente, o valor de maior probabilidade, gerando assim uma lista de tokens de resposta.  
 
 ---
 ### Um pouco de prática
