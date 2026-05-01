@@ -59,9 +59,15 @@ Até o momento o modelo do tensor sofreu apenas multiplicações de vetores, ou 
 ReLU é uma operação computacionalmente barata `max(0, x)` que adiciona não linearidade e esparsidade (tende a zerar metade das ativações) diminuindo o risco de treinamento excessivo (overfitting), além de favorecer a generalização. A função ReLU, possui derivada 1 quando x>0, logo o gradiente se mantém constante se for positivo, assim evitamos perdas do gradiente a medida que aumentamos a quantidade de tensores.
 Soft ReLU é computacionalmente mais cara e mantém um pequeno valor negativo o que reduz a esparsidade, a um custo computacional maior, o que pode melhorar o desempenho dependendo da situação. Hoje com o uso mais eficiente das CPU e GPU o custo da soft ReLU é menor, mas os ganhos ainda são pequenos, sendo uteis apenas em modelos maiores como  BERT, GPT-2/3. No fim cabe a você definir o melhor uso e aplicar de acordo com sua capacidade computacional.  
 
+#### Aplicando o embedding
+O computador não entende palavras, ele entende apenas números, então as palavras são convertidas em números com dimensões fixas, no caso `dim_model=512` no artigo original. O embedding ocorre na **entrada do codificador**, convertendo o texto em um vetor de embedding e no **embedding de saída** que transforma os tokens recebidos em vetores (como no caso de tradução ou recebendo dados de outro tensor).  
+
+Outro ponto importante onde se usa o embeding é na saída linear do output, onde se usa a matriz de embedding, com formato (tam_vocabulario, dim_model),  para fazer uma transformação linear da saída do decodificador. Ao fazer `saida_tensor @ matriz_embedding.T` geramos uma aproximação da saída do decodificador com o nosso vocabulário, com formato (batch, compr_seq, tam_vocabulario)que ao usar softmax  vira uma probabilidade de equivaler a um token.
+
+---
 ### Um pouco de prática
 
-#### 1 - Implementação bpasica do tensor
+#### 1 - Implementação básica do tensor
 - Aqui podemos ver a primeira etapa do tensor onde criamos um modelo básico com Q, K, V e O.
     - O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_1.py), basta executar `python doc/aprendendo_tensor/tensor_1.py`.  
 
@@ -82,6 +88,21 @@ Soft ReLU é computacionalmente mais cara e mantém um pequeno valor negativo o 
     - Também foi implementado outras funções de ativação caso queiram testar.
 - O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_3.py), basta executar `python doc/aprendendo_tensor/tensor_3.py`.  
 
+#### 4 - implementado o embedding
+- O passo a passo do código de embedding do codificador e decodificador é:
+    - criado um embedding de dimensão (tam_bloco, compr_seq, dim_model) de valor (2, 10, 64)
+    - aplica a codificação posicional para que a posição seja significativa [Não implementada ainda]
+    - propaga no tensor usando Q, K, V = embedding de 4 cabecas
+        - ao propagar é multiplicado o embedding em cada cabeça de dimensão (num_cabecas, dim_model, dim_head) no valor de (2, 64, 16). dim_head será dim_model//num_cabeças
+        - isso resulta em uma lista (batch, seq_len, dim_head x num_cabecas) de valor (2, 10, 16 x 4)
+        - o resultado é concatenado no ultimo eixo gerando uma saida (2, 10, 64)
+        - por fim é calculado o output onde a saída concatenada é multiplicada pelo peso de saída: W_O (dim_head*num_head, dim_model) * saida concatenada = (num_batch, seq_len, dim_model) no valor de (2, 10, 16)
+- O passo a passo do embedding de saída é:
+    - O resultado do decodificador passa pela matriz de embedding original, atraves de uma multiplicação `saida_frase @ matriz_embedding.T` assim geramos um resultado (batch, compr_seq, tam_vocab) com valor (2, 10, 1000).
+    - esse resultado passa pelo softmax gerando valores entre 0 e 1 ao longo do vetor (2, 10, 1000)
+    - em seguida escolhemos o maior valor de probabilidade para cada unidade de batch (no caso 2) usando `np.argmax(probabilidades_tokens, axis=-1)`
+    - como o batch é 2 escolhemos os 2 blocos de tamanho seq_len com maior probabilidade. Como no exemplo seq_len = 10 e batch = 2 temos 10 tokens em 2 blocos
+- O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_4.py), basta executar `python doc/aprendendo_tensor/tensor_4.py`.  
 
 
 
