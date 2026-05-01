@@ -59,10 +59,29 @@ Até o momento o modelo do tensor sofreu apenas multiplicações de vetores, ou 
 ReLU é uma operação computacionalmente barata `max(0, x)` que adiciona não linearidade e esparsidade (tende a zerar metade das ativações) diminuindo o risco de treinamento excessivo (overfitting), além de favorecer a generalização. A função ReLU, possui derivada 1 quando x>0, logo o gradiente se mantém constante se for positivo, assim evitamos perdas do gradiente a medida que aumentamos a quantidade de tensores.
 Soft ReLU é computacionalmente mais cara e mantém um pequeno valor negativo o que reduz a esparsidade, a um custo computacional maior, o que pode melhorar o desempenho dependendo da situação. Hoje com o uso mais eficiente das CPU e GPU o custo da soft ReLU é menor, mas os ganhos ainda são pequenos, sendo uteis apenas em modelos maiores como  BERT, GPT-2/3. No fim cabe a você definir o melhor uso e aplicar de acordo com sua capacidade computacional.  
 
-#### Aplicando o embedding
+### Aplicando o embedding
 O computador não entende palavras, ele entende apenas números, então as palavras são convertidas em números com dimensões fixas, no caso `dim_model=512` no artigo original. O embedding ocorre na **entrada do codificador**, convertendo o texto em um vetor de embedding e no **embedding de saída** que transforma os tokens recebidos em vetores (como no caso de tradução ou recebendo dados de outro tensor).  
 
 Outro ponto importante onde se usa o embeding é na saída linear do output, onde se usa a matriz de embedding, com formato (tam_vocabulario, dim_model),  para fazer uma transformação linear da saída do decodificador. Ao fazer `saida_tensor @ matriz_embedding.T` geramos uma aproximação da saída do decodificador com o nosso vocabulário, com formato (batch, compr_seq, tam_vocabulario)que ao usar softmax  vira uma probabilidade de equivaler a um token.
+
+### Codificação posicional
+O tensor não possui uma ordenação na entrada dos dados, todos os dados são lidos e processados simultaneamente, assim precisamos de um meio de adicionar aos dados uma um posicionamento relativo. Tensores trabalham apenas com atenção e feed foward o que significa que a troca de posição de dados não altera o resultado, assim foi criado a codificação posicional.
+A codificação posicional pode ser feita de 2 modos:
+- codificação aprendida, onde é treinado um modelo que cria uma matriz de posição (`max_len x dim_model`). Esta abordagem é simples porém não consegue generalizar para tamanhos maiores que o original.
+- codificação fixa - é usada uma fórmula para calcular a posição. No artigo original é usada essa abordagem.
+A formula de codificação fixa é:
+$$
+
+PE(pos, 2i)   = sin( pos / 10000^{2\frac{i}{dim_{model}}} )
+
+$$
+$$
+
+PE(pos, 2i+1) = cos( pos / 10000^{2\frac{i}{dim_{model}}} )
+
+$$
+Sendo `pos` a posição na sequencia de tokens, `i` a dimensão do dim_model (i entre 0 e dim_model), `2i` e `2i+1` significa que as posições pares recebem seno e as ímpares cosseno.  
+Com base nessa codificação o comprimento da onda seno e cosseno varia de `2π` na posição 0 a `10000*2π`. O valor 10000 foi arbitrário e pode ser usado outro valor.
 
 ---
 ### Um pouco de prática
@@ -104,5 +123,8 @@ Outro ponto importante onde se usa o embeding é na saída linear do output, ond
     - como o batch é 2 escolhemos os 2 blocos de tamanho seq_len com maior probabilidade. Como no exemplo seq_len = 10 e batch = 2 temos 10 tokens em 2 blocos
 - O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_4.py), basta executar `python doc/aprendendo_tensor/tensor_4.py`.  
 
+#### Positional encodig
+- O modelo segue conforme o `tensor_4.py`, apenas adicionamos a fómula do posicional enconding e somamos o posicional encoding ao embedding
+- O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_4.py), basta executar `python doc/aprendendo_tensor/tensor_5.py`. 
 
 
