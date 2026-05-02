@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 from collections import defaultdict
+import re
 
 class TokenizadorBPE:
     def __init__(self, max_tam_token=20):
@@ -39,7 +40,8 @@ class TokenizadorBPE:
         
         # carregando o arquivo para processar
         with open(arquivo,'r', encoding='utf-8') as arq:
-            texto = arq.read().strip().split()
+            texto = arq.read().strip()
+            texto = re.findall(r'\S+|\s*', texto)
 
         # ordena por tamanho do maior para o menor arquivo para otimizar o loop
         lista_texto = sorted(texto, key=len, reverse=True)
