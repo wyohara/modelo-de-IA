@@ -2,7 +2,7 @@
 import os
 import subprocess
 
-from src.app import processar_arquivos, tokenizar, embeding
+from src.app import tokenizar, embeding
 
 if __name__ == "__main__":
     try:

@@ -154,6 +154,6 @@ O logits por sua vez é aplicado uma função `softmax`, transformando-o em  uma
 
 #### Positional encodig
 - O modelo segue conforme o `tensor_4.py`, apenas adicionamos a fómula do posicional enconding e somamos o posicional encoding ao embedding
-- O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_4.py), basta executar `python doc/aprendendo_tensor/tensor_5.py`. 
+- O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_5.py), basta executar `python doc/aprendendo_tensor/tensor_5.py`. 
 
 
