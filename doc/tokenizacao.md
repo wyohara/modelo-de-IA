@@ -159,7 +159,7 @@ OOV = (número de palavras desconhecidas)/(total de tokens do tokenizador) * 100
 #### Tamanho do Vocabulário x Cobertura
 Representa a relaçao entre o vocabulário e a cobertura, existe um limite para o quanto o aumento do vocabulário gera de ganho, gerando uma curva exponencial.  
 
-<img width="300" src="../teoria/arquivos/tokenization_01.png">  
+![Curva de vocabulário](/bibliografia/imagens/tokenization_01.png)
 
 *Obtido usando o treinamento do bpa desse repositório*
 
