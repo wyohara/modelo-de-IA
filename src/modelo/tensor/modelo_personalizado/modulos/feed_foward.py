@@ -33,7 +33,7 @@ class FeedFoward:
         self.W2 = np.random.randn(dim_ff, dim_model) * 0.1
         self.b2 = np.zeros(dim_model)
     
-    def forward(self, saida_atencao)->np.array:
+    def forward_completo(self, saida_atencao)->np.array:
         '''
         Método que aplica uma rede neural feed foward a saída da atenção.
         Permite inserir aleatoriedade a projeção linear original
@@ -48,10 +48,15 @@ class FeedFoward:
         # Aplicando o segundo feed foward
         self.ff2 = (self.camada_oculta @ self.W2) + self.b2
         self.ff2_soma = self.ff2 + saida_atencao
-        saida_norm = self.__ferramentas.layer_norm(self.ff2_soma, 
+        return self.__ferramentas.layer_norm(self.ff2_soma, 
                                                    gamma=self.gamma, 
                                                    beta=self.beta)
-        return saida_norm
+
+    
+    def foward(self, saida_atencao)->np.ndarray:
+        self.forward_completo(saida_atencao)
+        ff_soma, ff_out, ff_mean, ff_std, ff_out_norm, gamma = self.forward_completo(saida_atencao)
+        return ff_out
 
     def gerar_gradiente_perda_mse(self, resultado, rotulos_teste):
         """

@@ -1,42 +1,28 @@
 import numpy as np
+from src.modelo.tokenizador.tokenizador import Tokenizador
+from src.modelo.tensor.modelo_personalizado.tensor import Tensor
 
-from src.modelo.tensor.rope.tensor import Tensor
-from src.modelo.tensor.rope.tensor_foward import TensorFoward
-from src.modelo.tensor.rope.tensor_backward import TensorBackward
-from src.modelo.tensor.rope.ferramentas import Ferramentas
 
-class Embeding():
-    def __init__(self):
-        super().__init__()
-        
-        #valores iniciais
-        self.__tensor = Tensor(num_head=4)
+def tensor_embeding(texto):
+    dim_model = 300
+    num_head = 50
+    tkr = Tokenizador()
+    tensor = Tensor(seq_len=dim_model, num_heads=num_head, teste=False)
 
-        # Listas para armazenar variáveis intermediárias de cada cabeça
-        self.head_out_list = []
+    tkr.carregar_tokenizador_bpe()
+    texto_tokenizado = tkr.tokenizar(texto)        
+    texto_reshape = tensor.converter_lista_para_tensor_shape(texto_tokenizado)
+    att = tensor.mha.gerar_atencao(texto_reshape, texto_reshape, texto_reshape)
+    return tensor.feedfoward.foward(att)
 
-    def foward(self, valor_entrada:np):
-        return TensorFoward().foward(tensor=self.__tensor, valor_entrada=valor_entrada)
+def embeding_teste():       
+    dim_model = 300
+    num_head = 50
+    tensor = Tensor(seq_len=dim_model, num_heads=num_head)
+    palavras = ['rei', 'rainha', 'arvore', 'mulher']
     
-    def backward(self, valor_entrada:np, valor_saida:np):
-        return TensorBackward().backward(self.__tensor, valor_entrada, valor_saida)
-
-    def gerar_loss(self, valor_saida, x2_norm):
-        loss = np.mean((x2_norm - valor_saida) ** 2)
-        print(f"Loss inicial (num_heads={self.__tensor.num_heads}): {loss:.6f}")
+    tensor.similaridade(tensor_embeding(palavras[0]), tensor_embeding(palavras[1]))
+    tensor.similaridade(tensor_embeding(palavras[0]), tensor_embeding(palavras[3]))
+    
 
 
-def embeding_teste():
-    X = np.array([[1., 0., 1.],  [0., 1., 0.],  [1., 1., 1.]])
-    Y =  np.array([
-            [0.5, 0.2, 0.3],
-            [0.1, 0.9, 0.0],
-            [0.8, 0.7, 0.6]
-        ])
-
-    embeding = Embeding()
-    saida_inicial = embeding.foward(X)
-    embeding.gerar_loss(saida_inicial, Y)
-    for i in range(100):
-        saida_final = embeding.backward(X, Y)
-        embeding.gerar_loss(saida_final, Y)

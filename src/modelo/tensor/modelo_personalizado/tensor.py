@@ -5,28 +5,38 @@ import numpy as np
 
 
 class Tensor:
-    def __init__(self, dim_model:int, cabecas:int, dim_k:int=0, dim_v:int=0, teste=True):
-        self.mha = AtencaoMulticabeca(dim_model=dim_model, cabecas=cabecas, 
+    def __init__(self, seq_len:int, num_heads:int, dim_k:int=0, dim_v:int=0, teste=True):
+        self.mha = AtencaoMulticabeca(seq_len=seq_len, cabecas=num_heads, 
                                       dim_k=dim_k, dim_v=dim_v, teste=teste)
-        self.feedfoward = FeedFoward(dim_model=dim_model, teste=teste)
+        self.feedfoward = FeedFoward(dim_model=seq_len, teste=teste)
+
+    
+    def converter_lista_para_tensor_shape(self, lista_tokens:list)->np.ndarray:           
+        num_zeros = self.mha.seq_len - len(lista_tokens)
+        tokens_np = np.array(lista_tokens) 
+        #caso seja uma lista simples     
+        if len(tokens_np.shape) == 1: 
+            tokens_np = tokens_np.reshape(1, 1, len(tokens_np))
+        else:
+            tokens_np = tokens_np.reshape(tokens_np.shape[0], 1, tokens_np.shape[1])
+            print('reshape parcial ', tokens_np.shape)
+        arr_padded = np.pad(tokens_np, ((0, 0), (0, 0), (0, self.mha.seq_len-tokens_np.shape[2])), constant_values=0)
+        return arr_padded
     
     @staticmethod
     def similaridade(x:np.ndarray, y:np.ndarray):
-        norm_x = np.linalg.norm(x, axis=1, keepdims=True)
-        norm_y = np.linalg.norm(y, axis=1, keepdims=True)
+        dot = np.sum(x * y, axis=-1)          # (2, 10)
 
-        # Vetores normalizados
-        x_unit = x / norm_x
-        y_unit = y / norm_y
+        # 2. Normas
+        normA = np.linalg.norm(x, axis=-1)    # (2, 10)
+        normB = np.linalg.norm(y, axis=-1)    # (2, 10)
 
-        # Similaridade de cosseno (produto escalar dos vetores unitários)
-        sim_cosseno = np.sum(x_unit * y_unit, axis=1)
+        # 3. Cosseno da similaridade
+        epsilon = 1e-8
+        cos_sim = dot / (normA * normB + epsilon)
 
-        # Se quiser em uma linha:
-        sim_cosseno = np.sum((x / np.linalg.norm(x, axis=1, keepdims=True)) * 
-                            (y / np.linalg.norm(y, axis=1, keepdims=True)), axis=1)
-
-        return sim_cosseno[0]
+        print("Formato da similaridade:", cos_sim)  # (2, 10)
+        return cos_sim[0]
 
     @staticmethod
     def rotacionar_por_cosseno(v, u, cosseno_alvo):

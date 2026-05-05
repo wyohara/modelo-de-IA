@@ -36,16 +36,16 @@ def testar_tensor():
   [-0.9999995,   0.9999995 ],
   [ 0.99999948, -0.99999948]]])
 
-    t=Tensor(dim_model=dim_model, cabecas=cabecas, teste=True)
-    ff_soma, out, mean, std, out_norm, gamma = t.mha.gerar_atencao(x,x,x)
-    print('>>> Saida da atencao - out', out)
+    t=Tensor(seq_len=dim_model, num_heads=cabecas, teste=True)
+    ff_soma, ff_out, mean, std, out_norm, gamma = t.mha.gerar_atencao_completa(x,x,x)
+    print('>>> Saida da atencao - out', ff_out)
     print('>>> Saida da atencao - mean', mean)
     print('>>> Saida da atencao - std', std)
     print('>>> Saida da atencao - out norm', out_norm)
     print('>>> Saida da atencao - gamma', gamma)
 
 
-    ff_soma, ff_out, ff_mean, ff_std, ff_out_norm, gamma= t.feedfoward.forward(out)
+    ff_soma, ff_out, ff_mean, ff_std, ff_out_norm, gamma= t.feedfoward.forward_completo(ff_out)
     print('>>> Saida da feed foward - ff out', ff_out_norm)
     print('>>> Saida da feed foward - ff mean', ff_mean)
     print('>>> Saida da feed foward - ff std', ff_std)
@@ -54,7 +54,7 @@ def testar_tensor():
 
     res_mse = t.feedfoward.gerar_gradiente_perda_mse(ff_out, y)
     print('MSE', res_mse)
-    dx, dW1, db1, dW2, db2, dgamma, dbeta = t.feedfoward.gerar_backward(res_mse, ff_mean, ff_std, ff_out_norm, gamma, out, ff_soma )
+    dx, dW1, db1, dW2, db2, dgamma, dbeta = t.feedfoward.gerar_backward(res_mse, ff_mean, ff_std, ff_out_norm, gamma, ff_out, ff_soma )
 
     print('antes correção', t.feedfoward.gamma, dgamma)
     t.feedfoward.corrigir_pesos(dW1,db1,dW2,db2, dgamma, dbeta)
@@ -64,11 +64,8 @@ def testar_tensor():
     print('similaridade (cosseno) =', t.similaridade(x, y))
     rot = t.rotacionar_por_cosseno(x, y, 0.9)
 
-    x_entrada,dW_Q_list, dW_K_list, dW_V_list,dW_O, db_O,dgamma_ln, dbeta_ln = t.mha.gerar_backward(dx, out, mean, std, out_norm, gamma)
+    x_entrada,dW_Q_list, dW_K_list, dW_V_list,dW_O, db_O,dgamma_ln, dbeta_ln = t.mha.gerar_backward(dx, ff_out, mean, std, out_norm, gamma)
 
-    
+    #x_entrada vai para o tensor anterior
+
     print (db_O)
-
-'''
-Exemplo de uspo do tensor personalizado
-'''
