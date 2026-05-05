@@ -12,6 +12,7 @@ class TokenizadorBPE:
         '''
         self.__dataset = Path('src/media/dataset/')        
         self.__arquivo_lista_bpe = Path('src/media/dados_processados/lista_bpe.csv')
+        self.__arquivo_lista_processados = Path('src/media/dados_processados/lista_arquivos_processados.csv')
         self.max_tam_token = max_tam_token
     
     def processar_textos(self):      
@@ -22,9 +23,40 @@ class TokenizadorBPE:
 
         #percorre a lista de arquivos e processa apenas os arquivos txt
         for arquivo in lista_arquivos:
-            if arquivo.name.split('.')[-1] == 'txt':
+            if arquivo.name.split('.')[-1] == 'txt'and not self.__is_arquivo_processado(arquivo):
                 print(f">>> processando {arquivo.name}")
                 self.__aplicar_bpe(arquivo)
+                self.__marcar_como_processado(arquivo)
+
+    def __is_arquivo_processado(self, arquivo:Path):
+        try:
+            df = pd.read_csv(self.__arquivo_lista_processados)
+            # Verifica se o nome está na coluna 'arquivo'
+            return str(arquivo) in df['arquivo'].values
+        except FileNotFoundError:
+            return False
+    
+    def __marcar_como_processado(self, arquivo: Path) -> bool:
+        """
+        Retorna True se o arquivo foi salvo (não existia na lista),
+        ou False se já estava processado.
+        """
+
+        # Cria um DataFrame com o novo arquivo
+        novo_registro = pd.DataFrame({'arquivo': [str(arquivo)]})
+
+        try:
+            # Tenta ler o CSV existente para concatenar
+            df_existente = pd.read_csv(self.__arquivo_lista_processados)
+            df_atualizado = pd.concat([df_existente, novo_registro], ignore_index=True)
+        except (FileNotFoundError, pd.errors.EmptyDataError):
+            # Se o arquivo não existe ou está vazio, usa só o novo registro
+            df_atualizado = novo_registro
+
+        # Salva (sobrescreve) o CSV
+        df_atualizado.to_csv(self.__arquivo_lista_processados, index=False)
+        return True
+
 
     def __aplicar_bpe(self, arquivo:Path):
         '''
@@ -49,20 +81,21 @@ class TokenizadorBPE:
         #percorre cada palavra do texto
         for palavra in lista_texto:
             for i in range(len(palavra)):
-                for j in range(min(len(palavra), self.max_tam_token)):
+                min_valor = min(len(palavra), self.max_tam_token)
+                #faz um loop começando de i até j sempre
+                for j in range(min(i, min_valor), min_valor,):
                     # Faz um slice da palavra
-                    if i<=j:
-                        subpalavra = palavra[i:j+1]
-                        try:
-                            lista_bpe[subpalavra]['quantidade'] += 1
-                        except KeyError:
-                            lista_bpe[subpalavra]=defaultdict()
-                            lista_bpe[subpalavra]['quantidade'] = 1
+                    subpalavra = palavra[i:j+1]
+                    try:
+                        lista_bpe[subpalavra]['quantidade'] += 1
+                    except KeyError:
+                        lista_bpe[subpalavra]=defaultdict()
+                        lista_bpe[subpalavra]['quantidade'] = 1
 
         #Após percorrer o texto salva os dados
-        self.salvar_e_incrementar_bpe(lista_bpe)     
+        self.__salvar_e_incrementar_bpe(lista_bpe)     
 
-    def salvar_e_incrementar_bpe(self, lista_bpe:defaultdict):
+    def __salvar_e_incrementar_bpe(self, lista_bpe:defaultdict):
         '''
         Método que salva e incrementa as quantidades de subpalavras que existirem
         Params:
