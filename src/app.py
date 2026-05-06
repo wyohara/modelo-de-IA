@@ -3,6 +3,7 @@ from src.modelo.tokenizador.processadores_texto.tokenizador_word_piece import To
 from src.modelo.tokenizador.tokenizador import Tokenizador
 from src.modelo.embeding.embeding import embeding_teste
 from src.modelo.tensor.modelo_personalizado.tensor import Tensor
+from src.modelo.transformer.transformer import Transformer
 
 import numpy as np
 
@@ -69,3 +70,28 @@ def testar_tensor():
     #x_entrada vai para o tensor anterior
 
     print (db_O)
+
+
+def testar_transformer():
+    dim_model = 2
+    num_heads = 1
+    
+    x = np.array([[[1,2],[4,6],[7,3]]])
+    print(x.shape[-1])
+    y = np.array([
+            [[-0.9999995,  0.9999995 ],
+            [-0.9999995,   0.9999995 ],
+            [ 0.9999995, -0.9999995]]
+         ])
+
+
+    print("====="*10)
+    print("\tAplicando o transformer padrao")
+    print("====="*10)
+    t = Transformer(dim_model=dim_model, num_heads=num_heads)
+    resp = t.aplicar_tensor_padrao(x,x,x)
+    print('>>> Saida do transformer', resp.shape) 
+    print(resp)   
+    print('>>> Similaridade', t.utils.similaridade(y, resp))
+
+    

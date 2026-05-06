@@ -2,12 +2,14 @@ import numpy as np
 
 from src.modelo.tensor.modelo_personalizado.modulos.ferramentas_tensor import FerramentasTensor
 
+
+PATH_FF = 'src/media/dados_processados/pesos_ff.npz'
 class FeedFoward:
-    def __init__(self, dim_model:int, dim_ff=None, teste=True):
+    def __init__(self, seq_len:int, dim_ff=None, teste=True):
         '''
         Modelo da rede neural feed foward simplificada para o tensor.
         Params:
-            dim_model: dimensão original do modelo do tensor - quantos parametros são aceitos
+            seq_len: comprimento dos tokens - quantos parametros são aceitos
             dim_ff: é a dimensão do feed foward normalmente 4*dim_model
         '''
         #definindo uma seed fixa para o numpy gerar sempre o mesmo valor e tornar teste repetível
@@ -15,23 +17,38 @@ class FeedFoward:
             np.random.seed(42)
 
         self.__ferramentas = FerramentasTensor()
-        self.dim_model = dim_model # dimensões do modelo usado        
-        self.gamma = np.array([1]*dim_model) # Fator gamma do layernorm, cada dimensão tem seu gamma e layernorm
-        self.beta = np.array([0]*dim_model) # Fator beta do layernorm, cada dimensão tem seu beta e layernorm
+        self.dim_model = seq_len # dimensões do modelo usado        
+        self.gamma = np.array([1]*seq_len) # Fator gamma do layernorm, cada dimensão tem seu gamma e layernorm
+        self.beta = np.array([0]*seq_len) # Fator beta do layernorm, cada dimensão tem seu beta e layernorm
 
         # Valor segundo o paper "Attention Is All You Need"
         # dim_ff é 4*dim_model
-        dim_ff =dim_ff if dim_ff else 4 * dim_model
+        dim_ff =dim_ff if dim_ff else 4 * seq_len
         
         #gerando os pesos e bias do feed foward camada 1
-        self.W1 = np.random.randn(dim_model, dim_ff) * 0.1
+        self.W1 = np.random.randn(seq_len, dim_ff) * 0.1
         self.b1 = np.zeros(dim_ff)
         
         #gerando os pesos e bias do feed foward camada 2
         # Perceba que no segundo peso é invertido dim_ff e dim_model
         # O que irá gerar uma matriz quadrada dim_model x dim_model
-        self.W2 = np.random.randn(dim_ff, dim_model) * 0.1
-        self.b2 = np.zeros(dim_model)
+        self.W2 = np.random.randn(dim_ff, seq_len) * 0.1
+        self.b2 = np.zeros(seq_len)
+
+        self.teste = teste
+        if not self.teste:
+            try:
+                dados = np.load(PATH_FF)
+                self.W1 = dados['W1']
+                self.b1 = dados['b1']
+                self.W2 = dados['W2']
+                self.b2 = dados['b2']
+
+                self.beta = dados['beta']
+                self.gamma = dados['gamma']
+            except FileNotFoundError:          
+                np.savez(PATH_FF, W1=self.W1, b1=self.b1, W2=self.W2,
+                         b2=self.b2, beta=self.beta, gamma=self.gamma)
     
     def forward_completo(self, saida_atencao)->np.array:
         '''
@@ -168,7 +185,7 @@ class FeedFoward:
         dx = d_x_residual+ dx_ff
         return dx, dW1, db1, dW2, db2, dgamma, dbeta  
     
-    def corrigir_pesos(self, dW1, db1, dW2, db2, dgamma, dbeta, taxa_aprendizado=0.001):
+    def corrigir_pesos(self, dW1, db1, dW2, db2, dgamma, dbeta, taxa_aprendizado=0.1):
         '''
         Método que corrige os pesos da camada do feedfoward
             dgamma : Gradiente da perda em relação ao parâmetro gamma.
@@ -183,6 +200,12 @@ class FeedFoward:
         
         self.gamma = self.gamma - taxa_aprendizado * dgamma
         self.beta  = self.beta  - taxa_aprendizado * dbeta
+
+        if not self.teste:
+            np.savez(PATH_FF, W1=self.W1, b1=self.b1, W2=self.W2,
+                        b2=self.b2, beta=self.beta, gamma=self.gamma)
+
+
     @staticmethod
     def relu(x):
         return np.maximum(0, x)

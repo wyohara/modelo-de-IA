@@ -1,6 +1,7 @@
 import numpy as np
 from src.modelo.tensor.modelo_personalizado.modulos.ferramentas_tensor import FerramentasTensor
 
+PATH_MHA = 'src/media/dados_processados/pesos_mha.npz'
 
 class AtencaoMulticabeca:
     def __init__(self, seq_len:int, cabecas:int, dim_k:int=0, dim_v:int=0, teste=True):
@@ -22,19 +23,40 @@ class AtencaoMulticabeca:
 
         if teste: #definindo uma seed fixa para o numpy gerar sempre o mesmo valor no random
             np.random.seed(42)
+        self.teste = teste
+
         self.__iniciar_valores()        
     
     def __iniciar_valores(self):
         '''
         Definindo os pesos iniciais de Q, K, V e o peso final O após a concatenação obedecendo:
         MultiHead(Q,K,V ) = Concat(head1,...,headh)W^o
-        '''    
+        '''        
+        
         self.W_K = np.random.randn(self.num_heads, self.seq_len, self.dim_K) * 0.1
         self.W_Q = np.random.randn(self.num_heads, self.seq_len, self.dim_K) * 0.1
         self.W_V = np.random.randn(self.num_heads, self.seq_len, self.dim_V) * 0.1
 
         # Projeção final após concatenação
-        self.W_O = np.random.randn(self.num_heads * self.dim_K, self.seq_len)
+        self.W_O = np.random.randn(self.num_heads * self.dim_K, self.seq_len)      
+        if not self.teste:
+            try:
+                dados = np.load(PATH_MHA)
+                self.W_K = dados['W_K']
+                self.W_Q = dados['W_Q']
+                self.W_V = dados['W_V']
+                self.W_O = dados['W_O']
+
+                self.num_heads = self.W_K.shape[0]
+                self.seq_len = self.W_K.shape[1]
+                self.dim_K = self.W_K.shape[2]
+                self.dim_V = self.W_V.shape[2]
+
+                self.beta = dados['beta']
+                self.gamma = dados['gamma']
+            except FileNotFoundError:          
+                np.savez(PATH_MHA, W_K=self.W_K, W_Q=self.W_Q, W_V=self.W_V,
+                         W_O=self.W_O, beta=self.beta, gamma=self.gamma)
     
     def gerar_atencao_completa(self, embeding_Q, embeding_K, embeding_V):
         '''
@@ -185,7 +207,7 @@ class AtencaoMulticabeca:
         return dQ, dK, dV
     
     def corrigir_pesos_mha(self, dW_Q_list, dW_K_list, dW_V_list, dW_O, db_O, 
-                       dgamma_ln, dbeta_ln, taxa_aprendizado=0.001):
+                       dgamma_ln, dbeta_ln, taxa_aprendizado=0.1):
         # Atualiza as matrizes das cabeças
         for h in range(self.num_heads):
             self.W_Q[h] -= taxa_aprendizado * dW_Q_list[h]
@@ -194,5 +216,11 @@ class AtencaoMulticabeca:
         # Atualiza a projeção de saída
         self.W_O -= taxa_aprendizado * dW_O
         # Atualiza parâmetros da layer norm (se existirem)
+        self.gamma = self.gamma.astype(np.float64)
         self.gamma -= taxa_aprendizado * dgamma_ln
+        self.beta = self.gamma.astype(np.float64)
         self.beta  -= taxa_aprendizado * dbeta_ln
+
+        if not self.teste:
+            np.savez(PATH_MHA, W_K=self.W_K, W_Q=self.W_Q, W_V=self.W_V,
+                     W_O=self.W_O, beta=self.beta, gamma=self.gamma)

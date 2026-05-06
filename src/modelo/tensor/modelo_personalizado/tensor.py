@@ -8,7 +8,7 @@ class Tensor:
     def __init__(self, seq_len:int, num_heads:int, dim_k:int=0, dim_v:int=0, teste=True):
         self.mha = AtencaoMulticabeca(seq_len=seq_len, cabecas=num_heads, 
                                       dim_k=dim_k, dim_v=dim_v, teste=teste)
-        self.feedfoward = FeedFoward(dim_model=seq_len, teste=teste)
+        self.feedfoward = FeedFoward(seq_len=seq_len, teste=teste)
 
     
     def converter_lista_para_tensor_shape(self, lista_tokens:list)->np.ndarray:           
@@ -37,6 +37,21 @@ class Tensor:
 
         print("Formato da similaridade:", cos_sim)  # (2, 10)
         return cos_sim[0]
+
+    def corrigir_tensor(self, valor, rotulo):        
+        ff_soma, ff_out, mean, std, out_norm, gamma = self.mha.gerar_atencao_completa(valor,valor,valor)        
+        ff_soma, ff_out, ff_mean, ff_std, ff_out_norm, gamma= self.feedfoward.forward_completo(ff_out)
+        
+        res_mse = self.feedfoward.gerar_gradiente_perda_mse(ff_out, rotulo)
+        dx, dW1, db1, dW2, db2, dgamma, dbeta = self.feedfoward.gerar_backward(res_mse, ff_mean, ff_std, ff_out_norm, gamma, ff_out, ff_soma )        
+        self.feedfoward.corrigir_pesos(dW1,db1,dW2,db2, dgamma, dbeta)       
+
+        x_entrada,dW_Q_list, dW_K_list, dW_V_list, dW_O, db_O, dgamma, dbeta = self.mha.gerar_backward(dx, ff_out, mean, std, out_norm, gamma)
+        self.mha.corrigir_pesos_mha(dW_Q_list, dW_K_list, dW_V_list, dW_O, db_O, dgamma, dbeta)
+
+        return x_entrada
+
+
 
     @staticmethod
     def rotacionar_por_cosseno(v, u, cosseno_alvo):

@@ -1,11 +1,11 @@
 
 # Modelo básico de IA para estudo  
 
-Este é um projeto de um tensor para modelo de inteligência artificial basico para estudo. O modelo usa como base um tensor básico inicialmente pensado segundo o artigo "Attention is all you need" [(aqui)](/bibliografia/Attention_is_all_you_need.pdf).  
+Este é um projeto de um transformer para modelo de inteligência artificial basico para estudo. O modelo usa como base um transformer básico inicialmente pensado segundo o artigo "Attention is all you need" [(aqui)](/bibliografia/Attention_is_all_you_need.pdf).  
 
 ## Sumário  
 1. [Princípios Filosóficos](/README.md#princípios-filosóficos)
-2. [O tensor](/README.md#o-tensor)
+2. [O transformer](/README.md#o-tensor)
 3. [Tokenizador](/doc/tokenizacao.md#sumário)
 
 ---
@@ -57,33 +57,40 @@ Quando definimos uma tarefa definida para um agente autonomo, como jogar xadrez 
 O problema entre alinhar o objetivo desejado e o objetivo mais lógico se  chama ***problema de alinhamento de valores*** e quanto mais inteligente um agentemais difícil é alinhar esses valores, pois as consequências de uma correção se torna incalculável, imagine corrigir a segurança do mesmo carro, uma alteração nas características  de segurança pode fazer ele aceitar atropelar uma pessoa se os riscos de dano forem menores que o calculado, mesmo que esse cálculo decorra de uma falha instrumental.  
 
 ---
-## O Tensor  
-
-Segundo o artigo “Attention Is All You Need” foi proposto um modelo de rede neural que substitui redes recorrentes (RNNs) e convolucionais (CNNs) por um mecanismo de atenção pura, chamado **Transformer**.
+# O transformer  
+No artigo “Attention Is All You Need” foi criada a proposta de um modelo de rede neural que substitui redes recorrentes (RNNs) e convolucionais (CNNs) por um mecanismo de atenção pura, chamado Transformer.
 As principais características são: 
-- O mecanismo de **autoatenção** permite relacionar duas posições quaisquer da sequência de dados com custo constante,diferente de RNNs e CNNs que aumentavam o custo a medida que aumentavam os dados, facilitando a captura de dependências de longo alcance.
-- A autoatenção calcula uma soma ponderada dos valores (V), onde os pesos (ou atenção) são obtidos pela relação entre queries (Q) e keys (K). Quanto maior o peso, maior a relevância daquele elemento para o contexto.
-- Para evitar que os pesos fiquem muito atenuados em sequências longas e para permitir que o modelo aprenda diferentes tipos de relações entre os dados, utiliza-se a atenção multicabeça ou **multi-head attention**:
-    - múltiplas cabeças de atenção paralelas, cada uma projetada para subespaços dimensional diferente.
-    - As saídas são concatenadas e projetadas linearmente, aumentando  os diferentes modos de visão e representação dos dados.  
+- O mecanismo de autoatenção que permite relacionar duas posições quaisquer da sequência de dados com custo constante, diferente de RNNs e CNNs que aumentavam o custo a medida que aumentavam a sequência de dados, facilitando a captura de dependências de longo alcance.  
+- Para aplicar a autoatenção é calculada uma soma ponderada dos valores (V), onde os pesos (ou atenção) são obtidos pela relação entre consultas (Q) e chaves (K). Quanto maior o peso, maior a relevância daquele elemento para o contexto.  
+- Para evitar que os pesos fiquem muito atenuados em sequências longas, pois quanto mais dados menor fica a diferença dos pesos, e para permitir que o modelo aprenda diferentes tipos de relações entre os dados, utiliza-se a atenção multicabeça ou multi-head attention:
+    - múltiplas cabeças de atenção paralelas, cada uma projetada para subespaços dimensionais diferentes. Assim, um mesmo conjunto de dados é analisado por diferentes dimensões, cada um por uma cabeça.
+Por fim as saídas são concatenadas e projetadas linearmente, aumentando os pesos de atenção por meio de diferentes modos de visão e representação dos dados.  
 
+## Estrutura do Transformer 
+A estrutura do transformer segue o modelo padrão codificador/decodificador, onde:  
+- O codificador é uma pilha de camadas com duas subcamadas:  
+    - autoatenção - captura as relações entre as palavras
+    - Camada de adição e normalização - para evitar a perda do gradiente
+    - feed foward - uma camada pequena de rede neural usando ReLU que permite transformações complexas não lineares, adicionando aleatoriedade ao modelo.
+    - Camada de adição e normalização - para evitar a perda do gradiente
+OBS A camada de adição e normalização é a adição e normalização dos valores originais da consulta com o resultado do gradiente, seguido de uma normalização. Isso evita a perda do gradiente (pesos e bias de cada parâmetro de entrada)  
 
-### Estrutura do tensor  
+$
+saida_{att} = LayerNorm(entrada + Autoatenção(entrada))
+resposta = LayerNorm(saida_{att}  + FeedForward(saida_{att}))
+$
 
-- A estrutura do tensor segue o modelo padrão codificador/decodificador:
-    - **O codificador** é uma pilha de camadas com duas subcamadas:
-        - `autoatenção` - captura as relações entre as palavras
-        - `feed foward` - uma camada pequena de rede neural usando ReLU que permite transformaçoes complexas não lineares
-        - Entre essas subcamadas há uma conexão residual para transformações (feed foward)  e normalização (LayerNorm)
-        - Fórmula (pré‑LayerNorm): `saída = LayerNorm(entrada + Autoatenção(entrada))` e `saída_final = LayerNorm(saída_parcial + FeedForward(saída_parcial))`.
-    - **O decodificador** são uma sequencia de camadas iguais com 3 subcamadas:
-        - `Camada de autoatenção mascarada` - igual ao codificador, mas com uma máscara que impede a autoatenção do decodificador de ver os tokens gerados aumentando a casualidade
-        - `Atenção cruzada` - uma camada intermediária que pode consultar a saída do codificador para gerar saída, ela alinha a saída do decodificador com a saída original.
-        - `feed foward` - identico ao codificador, com conexões residuais e LayerNorm
-        - Existe uma máscara que impede a autoatenção do decodificador de ver os tokens gerados aumentando a casualidade
-OBS no modelo original do paper havia o embeding, 6 camadas do codificador e 6 camadas do decodificador e com 512 dimensões de modelo dim_model.  
+O decodificador são uma sequência de camadas iguais com 3 subcamadas:  
+- Camada de autoatenção mascarada - igual ao codificador, mas com uma máscara que impede a autoatenção do decodificador de ver os tokens gerados aumentando a casualidade  
+- Atenção cruzada - uma camada intermediária que pode consultar a saída do codificador para gerar saída, ela alinha a autoatenção do codificador com a saída original.  
+- Camada residual e LayerNorm com adição de normalização  
+- Feed forward - idêntico ao codificador
+- Camada residual e LayerNorm com adição de normalização  
 
-![Modelo do tensor](/bibliografia/imagens/tensor_0.png)
+OBS No modelo original do artigo havia um embedding, 6 camadas do codificador e 6 camadas do decodificador e com 512 dimensões de modelo.  
+ 
+
+![Modelo do transformer](/bibliografia/imagens/tensor_0.png)
 
 ---
 ###  O que é atenção?  
@@ -92,54 +99,96 @@ OBS no modelo original do paper havia o embeding, 6 camadas do codificador e 6 c
 A função atenção é uma consulta (Query) em um padrão Chave-Valor (Key-Value),  onde a saída é uma soma ponderada dos valores V dados pelos pesos  que são a compatibilidade da Consulta (Q) e a Chave (K).  
 
 
-![Modelo do tensor](/bibliografia/imagens/tensor_1.png)
+![Modelo do transformer](/bibliografia/imagens/tensor_1.png)
 
 
-O tensor utiliza como fórmula o **produto escalar escalonado** com formula:  
+O Transformer utiliza como fórmula o **produto escalar escalonado** com formula:  
 
 $$
 Att(K,Q,V) = softmax(\frac{Q * K^{t}}{\sqrt{d_k}})V
 $$
 
-O fator $\sqrt{d_k}$ **escala** o produto para evitar que os valores cresçam demais, evitando que a magnitude não prevaleça sobre os gradientes e torma os gradientes estáveis.  
+Onde a função softmax é dada por:  
 
-Quando temos apenas uma cabeça, criamos apenas uma relação sobre um conjunto de dados. No multihead attention usamos **multiplas cabeças**, cada um com seu próprio Q, K, V buscando relações sobre diferentes perspectivas, por fim essas perspectivas são concatenadas e projetads linearmeste:  
+$$
+\sigma(\mathbf{z})_i = \frac{e^{z_i}}{\sum_{j=1}^{K} e^{z_j}}, \quad i = 1,\dots,K
+$$  
 
-$$MultiHead(K, Q, V) = Concatenar(head_1, ..., head_n)* W$$
 
-Onde head é:  
+> A função **softmax**   recebe como entrada um vetor z de K números reais e o normaliza em uma distribuição de probabilidade, onde a soma dessa distribuição retorna valor 1 e são proporcionais aos exponencial $e^{z_i}$ dos números de entrada. Ou seja, antes da softmax, alguns componentes do vetor podem ser negativos ou maiores que 1, além de não somar 1, mas, após aplicar a softmax, cada componente estará entre 0 e 1 e os componentes serão somados a 1, de modo que possam ser interpretados como probabilidades, além disso, os componentes de entrada maiores corresponderão a probabilidades maiores. [- Fonte](https://pt.wikipedia.org/wiki/Fun%C3%A7%C3%A3o_softmax)
 
-$$head=Att(QW^q, KW^k, VW^v)$$
 
-O custo computacional de usar cabeças paralelas tem valor parecido com o processamento de uma única cabeça com as dimensões totais de cabeças.  
+O fator $\sqrt{d_k}$ **escala** o produto para evitar que os valores cresçam demais, evitando assim que a magnitude (comprimento ou intensidade) não prevaleça sobre os gradientes, além de tornar os gradientes estáveis.  
+
+Quando temos apenas uma cabeça, criamos apenas uma relação sobre um conjunto de dados. Na atenção multicabeça (multihead attention) usamos **multiplas cabeças**, cada um com seus próprios valores de Q, K, V e buscando relações sobre diferentes perspectivas, por fim essas perspectivas são concatenadas e projetads linearmente:  
+
+$$
+MultiHead(K, Q, V) = Concatenar(head_1, ..., head_n)* W
+$$
+
+Onde cada cabeça (head) é:  
+
+$$
+head=Att(QW^q, KW^k, VW^v)
+$$
+
+Ao fim da concatenação um Tensor Q, K, V de formato `(batch, heads, seq_len, dim_head)` ao ter as cabeças concatenadas se torna um Tensor `(batch, seq_len, dim_model)` onde  `dim_model = heads*dim_head`.  
+- `heads ou h`: é o número de cabeças do Transformers
+- `seq_len`: é a quantidade de valores de entrada do modelo, como por exemplo o número de tokens de entrada.
+- `dim_head dado por d_k e d_v`: é o número de dimensões que cada cabeça tem. Originalmente calculado como `d_k,d_v = dim_model/heads`
+- `d_model` é o número de dimensões que o modelo suporta, no caso `heads*dim_head`.
+    No artigo original havia `dim_head=8`, `d_model=512` e portanto `dim_head=64` 
+- `Tensor` em algebra relacional é o nome dado a um vetor qualquer com mais de 3 dimensões.
+- concatenar é o processo de unir vetores ou tensores, assim um vetor $A = [1, 2]$ e o vetor $B = [3, 4]$, aao concatenar resulta em $(A + B) = [1, 2, 3, 4]$.
+
+Obs O custo computacional de usar cabeças paralelas tem valor parecido com o processamento de uma única cabeça com as dimensões totais de cabeças.  
 
 ---
-### Feed foward no modelo do tensor
-Até o momento o modelo do tensor sofreu apenas multiplicações de vetores, ou seja transformações lineares, o que torna o resultado da atenção um resultado linear que poderia ser simplificado em uma única transformação linear. Assim é preciso adicionar uma não linearidade ao modelo permitindo criar mais possibilidades. Para isso usamos uma rede feed foward completamente conectada com a saída do modelo de atenção e uma função ReLU.  
+### Feed Foward no modelo do transformer
+Até o momento o modelo do transformer sofreu apenas transformações lineares que podem ser definidas no formato $A = Bx+c$, ou seja, transformações lineares que poderiam ser simplificadas em uma única transformação linear. Assim é preciso adicionar não linearidade ao modelo, permitindo criar mais resultados além de permitir uma generalização. Para isso usamos uma rede feed foward simples completamente conectada com a saída do modelo de atenção e uma função de ativação ReLU.  
 
-![Modelo do tensor](/bibliografia/imagens/tensor_2.png)
+![Modelo do transformer](/bibliografia/imagens/tensor_2.png)
 
-- A rede feed foward consiste em uma operação de pesos (W) e bias(b) de uma rede neural tradicional e usa a fórmula $FFN(x) = max(0, xW_1 + b_1) W_2 + b_2$ .
-- A função ReLU consiste em zerar os valores negativos do resultado do feed foward, gerando valores esparsos, criando agregações (clusters), além de favorecer a generalização.  
+- A rede **feed foward** consiste em uma rede neural em que os dados fluem apenas em uma direção e a informação de entrada sofre operações com pesos (W) e bias(b) com a fórmula $FFN(x) = (x \cdot W) + b$.
+    Na rede neural original do transformer são utilizados apenas duas camadas de pesos e bias no formato $FFN(x) = ReLU[(x \cdot W_1 + b_1)\cdot W_2+b_2]$ seguido de uma ativação pela função ReLU.  
+- A função ReLU consiste em uma função de ativação onde zeram os valores negativos e propagam os positivos. Ela é dada por $ReLU = max(0, x)$.  
 
-#### Por que ReLU?
-ReLU é uma operação computacionalmente barata `max(0, x)` que adiciona não linearidade e esparsidade (tende a zerar metade das ativações) diminuindo o risco de treinamento excessivo (overfitting), além de favorecer a generalização. A função ReLU, possui derivada 1 quando x>0, logo o gradiente se mantém constante se for positivo, assim evitamos perdas do gradiente a medida que aumentamos a quantidade de tensores.
-Soft ReLU é computacionalmente mais cara e mantém um pequeno valor negativo o que reduz a esparsidade, a um custo computacional maior, o que pode melhorar o desempenho dependendo da situação. Hoje com o uso mais eficiente das CPU e GPU o custo da soft ReLU é menor, mas os ganhos ainda são pequenos, sendo uteis apenas em modelos maiores como  BERT, GPT-2/3. No fim cabe a você definir o melhor uso e aplicar de acordo com sua capacidade computacional.  
+#### Por qual motivo usar ReLU?
+ReLU é uma operação computacionalmente barata `relu = max(0, x)` que adiciona não linearidade e esparsidade (tende a zerar metade das ativações), diminuindo o risco de treinamento excessivo (overfitting), além de favorecer a generalização.  
+- Como contrapartida a Função ReLU tende a degradar o gradiente de propagação, criando uma tendencia de zerar os gradientes, sendo necessário assim a camada de adição e normalização dos dados, evitando a perda do gradiente.  
+- A função ReLU, possui apenas a derivada 1 quando x>0, logo o gradiente se mantém constante caso for positivo, assim evitamos perdas do gradiente positivo a medida que aumentamos a quantidade de camadas no transformer.
+- Outra opção é o `Soft ReLU`, que é computacionalmente mais cara, porém mantém um pequeno valor negativo, a um custo computacional maior.
+    - Manter um pequeno valor negativo reduz a esparsidade, o que pode melhorar o desempenho dependendo da situação.
+    - Com o uso mais eficiente das CPU e GPU o custo da soft ReLU é menor, mas os ganhos ainda são pequenos, sendo uteis apenas em modelos maiores como  BERT, GPT-2/3
+    - No fim cabe a você definir o melhor uso e aplicar de acordo com sua capacidade computacional.  
 
 
 ---
 ### Aplicando o embedding
-O computador não entende palavras, ele entende apenas números, então as palavras são convertidas em números com dimensões fixas, no caso `dim_model=512` no artigo original. O embedding ocorre na **entrada do codificador**, convertendo o texto em um vetor de embedding e no **embedding de saída** que transforma os tokens recebidos em vetores (como no caso de tradução ou recebendo dados de outro tensor).  
+O computador não entende palavras, ele entende apenas números, portanto as palavras precisam ser convertidas em indices inteiros, os tokens (ex 'eu' = 1, 'ele'=2). A quantidade de tokens é dado por`seq_len` e tem tamanho variável e depende do modelo.  
+- Após a tokenização, cada token é transformado em um vetor denso na **camada de embedding**, gerando uma matriz densa `(seq_len, d_model)` que será usado:  
+- O Tensor de embedding é usado nos seguintes momentos: 
+    - Na **entrada do codificador**
+    - Na **entrada do decodificador** após o deslocamente a direita `shift right`
 
-![Modelo do tensor](/bibliografia/imagens/tensor_3.png)
+#### Shift Right
+`shift right` é o processo de treinamento do decodificador onde ele aprende a gerar respostas, para isso ele é treinado com uma saída esperada do seguinte modo:
+- é fornecido uma resposta alvo `ex ['a', 'vida', 'e', 'bela']` e uma entrada ocultando o ultimo elemento (shift right) `ex ['a', 'vida', 'e']`
+- Espera-se que o decodificador gere a resposta com o último elemento e exclua o primeiro `ex ['vida', 'e', 'bela']`
+- Com isso treinamos o decodificador a gerar sequencialmente as respostas sem saber o resultado. 
+- além do sift`right é usado a mascara causal e mascara de padding.
 
-Outro ponto importante onde se usa o embeding é na saída linear do output, que será melhor explicado [aqui.](/README.md#gerando-o-output)
+#### Máscara causal (look‑ahead mask)
+Para evitar que o decodificador saiba quais são os pesos  
+
+![Modelo do transformer](/bibliografia/imagens/tensor_3.png)
+
 
 ---
 ### Codificação posicional
-O tensor não possui uma ordenação na entrada dos dados, todos os dados são lidos e processados simultaneamente, assim precisamos de um meio de adicionar aos dados uma um posicionamento relativo. Tensores trabalham apenas com atenção e feed foward o que significa que a troca de posição de dados não altera o resultado, assim foi criado a codificação posicional.  
+O transformer não possui uma ordenação na entrada dos dados, todos os dados são lidos e processados simultaneamente, assim precisamos de um meio de adicionar aos dados uma um posicionamento relativo. transformeres trabalham apenas com atenção e feed foward o que significa que a troca de posição de dados não altera o resultado, assim foi criado a codificação posicional.  
 
-![Modelo do tensor](/bibliografia/imagens/tensor_4.png)
+![Modelo do transformer](/bibliografia/imagens/tensor_4.png)
 
 A codificação posicional pode ser feita de 2 modos:
 - codificação aprendida, onde é treinado um modelo que cria uma matriz de posição (`max_len x dim_model`). Esta abordagem é simples porém não consegue generalizar para tamanhos maiores que o original.
@@ -160,17 +209,17 @@ Com base nessa codificação o comprimento da onda seno e cosseno varia de `2π`
 
 ---
 ### Gerando o output  
-Para a geração de saída de dados ocorre uma etapa de projeção linear da saída do tensor com a matriz de embedding, (tam_vocabulario, dim_model). Ao fazer `saida_tensor @ matriz_embedding.T` geramos um `logits` projeção entre o resultado do tensor e a matriz de embedding do nosso vocabulário, com formato (batch, compr_seq, tam_vocabulario). 
+Para a geração de saída de dados ocorre uma etapa de projeção linear da saída do transformer com a matriz de embedding, (tam_vocabulario, dim_model). Ao fazer `saida_tensor @ matriz_embedding.T` geramos um `logits` projeção entre o resultado do transformer e a matriz de embedding do nosso vocabulário, com formato (batch, compr_seq, tam_vocabulario). 
 
-![Modelo do tensor](/bibliografia/imagens/tensor_5.png)
+![Modelo do transformer](/bibliografia/imagens/tensor_5.png)
 
 O logits por sua vez é aplicado uma função `softmax`, transformando-o em  uma matriz de probabilidades de de vocabulario. Assim podemos escolher o resultado que mais se aproxima de um token, normalmente, o valor de maior probabilidade, gerando assim uma lista de tokens de resposta.  
 
 ---
 ### Um pouco de prática
 
-#### 1 - Implementação básica do tensor
-- Aqui podemos ver a primeira etapa do tensor onde criamos um modelo básico com Q, K, V e O.
+#### 1 - Implementação básica do transformer
+- Aqui podemos ver a primeira etapa do transformer onde criamos um modelo básico com Q, K, V e O.
     - O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_1.py), basta executar `python doc/aprendendo_tensor/tensor_1.py`.  
 
 #### 2 - Implementação básica da atenção
@@ -180,8 +229,8 @@ O logits por sua vez é aplicado uma função `softmax`, transformando-o em  uma
         - `batch` é a quantidade de sequências de valores independentes que são processados simultaneamente, assim ao invés de processar 10 frases em um loop adiciona a dimensão batch para processar as frases simultaneamente
         - `tam_sequencia` é o numero de tokens usados simultaneamente em cada batch
         - `dim` é o a dimensionalidade de cada token usado no embeding
-    - Após passar pelo tensor a representação do embeding se torna um novo vetor de mesmo formato, podendo passar por um novo tensor ou ser decodificado.
-    - Por fim o vetor resultado pode passar por um decodificador gerando texto, um classificador ou mesmo ir para outro tensor
+    - Após passar pelo transformer a representação do embeding se torna um novo vetor de mesmo formato, podendo passar por um novo transformer ou ser decodificado.
+    - Por fim o vetor resultado pode passar por um decodificador gerando texto, um classificador ou mesmo ir para outro transformer
     - O código pode ser conferido [aqui](/doc/aprendendo_tensor/tensor_2.py), basta executar `python doc/aprendendo_tensor/tensor_2.py`.  
 
 #### 3 - implementação básica do feed foward
@@ -194,7 +243,7 @@ O logits por sua vez é aplicado uma função `softmax`, transformando-o em  uma
 - O passo a passo do código de embedding do codificador e decodificador é:
     - criado um embedding de dimensão (tam_bloco, compr_seq, dim_model) de valor (2, 10, 64)
     - aplica a codificação posicional para que a posição seja significativa [Não implementada ainda]
-    - propaga no tensor usando Q, K, V = embedding de 4 cabecas
+    - propaga no transformer usando Q, K, V = embedding de 4 cabecas
         - ao propagar é multiplicado o embedding em cada cabeça de dimensão (num_cabecas, dim_model, dim_head) no valor de (2, 64, 16). dim_head será dim_model//num_cabeças
         - isso resulta em uma lista (batch, seq_len, dim_head x num_cabecas) de valor (2, 10, 16 x 4)
         - o resultado é concatenado no ultimo eixo gerando uma saida (2, 10, 64)

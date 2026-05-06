@@ -2,7 +2,7 @@
 import os
 import subprocess
 
-from src.app import tokenizar, embeding, testar_tensor
+from src.app import tokenizar, embeding, testar_transformer
 
 if __name__ == "__main__":
     try:
@@ -70,7 +70,7 @@ if __name__ == "__main__":
             print("🔧 Executando teste de embeding...")
             embeding()
 
-        elif args.modo == 'tensor':
-            print("🔧 Executando teste de tensor...")
-            testar_tensor()
+        elif args.modo == 'transformer':
+            print("🔧 Executando teste de transformer...")
+            testar_transformer()
 
