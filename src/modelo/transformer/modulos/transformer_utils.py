@@ -1,5 +1,7 @@
 import numpy as np
 
+from src.modelo.transformer.modulos.ferramentas import gradiente_perda_mse, gradiente_perda_cross_entropy
+
 
 class TransformerUtils:
     @staticmethod
@@ -13,6 +15,12 @@ class TransformerUtils:
         # 3. Cosseno da similaridade
         epsilon = 1e-8
         cos_sim = dot / (normA * normB + epsilon)
-
-        print("Formato da similaridade:", cos_sim)  # (2, 10)
         return cos_sim[0]
+    
+    @staticmethod
+    def perda_mse(x:np.array, y:np.array):
+        return gradiente_perda_mse(x, y)
+    
+    @staticmethod
+    def perda_mse(x:np.array, y:np.array):
+        return gradiente_perda_cross_entropy(x, y)

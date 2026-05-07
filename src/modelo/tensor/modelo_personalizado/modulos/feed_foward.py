@@ -123,8 +123,7 @@ class FeedFoward:
         d_saida = probs - y_one_hot
         return d_saida
 
-    def gerar_backward(self, gradiente_perda, media_ff, std_ff, out_norm_ff, 
-                       gamma, saida_att, soma):
+    def gerar_backward(self, gradiente_perda):
         '''
         Método que realiza a retropropagação (backward) para corrigir os pesos.
         Params:
@@ -153,10 +152,14 @@ class FeedFoward:
             dbeta : Gradiente para o parâmetro beta da LayerNorm. Shape (dim_model,).
         '''
         # ----- Backward da segunda camada linear (W2, b2) -----
+        ff2_soma, ff2_out, ff2_mean, ff2_std, ff2_out_norm, gamma  = self.__ferramentas.layer_norm(self.ff2_soma,
+                                      gamma=self.gamma,
+                                      beta=self.beta)
+
         #realiza o retropropagação da normalização, achando os valores corrigidos
         d_ff2, dgamma, dbeta = self.__ferramentas.layer_norm_backward(gradiente_perda, 
-                                                                       soma, media_ff, 
-                                                                       std_ff, out_norm_ff, 
+                                                                       ff2_soma, ff2_mean, 
+                                                                       ff2_std, ff2_out_norm, 
                                                                        gamma)
         ff_out = d_ff2.copy()
         d_x_residual = d_ff2.copy()

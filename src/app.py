@@ -73,25 +73,41 @@ def testar_tensor():
 
 
 def testar_transformer():
-    dim_model = 2
-    num_heads = 1
+    dim_model = 50
+    num_heads = 8
     
-    x = np.array([[[1,2],[4,6],[7,3]]])
-    print(x.shape[-1])
+    x = np.array([[[0,0],[0,1],[1,0],[1,1]]])
     y = np.array([
-            [[-0.9999995,  0.9999995 ],
-            [-0.9999995,   0.9999995 ],
-            [ 0.9999995, -0.9999995]]
+            [[0,0],
+            [0,0],
+            [0,0],
+            [1,1]]
          ])
 
+    padding = dim_model - x.shape[-1]
+    print(x.shape)
+    x = np.pad(x, pad_width=((0,0), (0,0), (0, padding)), constant_values=0)
+    
+    y = np.pad(y, pad_width=((0,0), (0,0), (0, padding)), constant_values=0)
 
     print("====="*10)
     print("\tAplicando o transformer padrao")
     print("====="*10)
     t = Transformer(dim_model=dim_model, num_heads=num_heads)
-    resp = t.aplicar_tensor_padrao(x,x,x)
-    print('>>> Saida do transformer', resp.shape) 
-    print(resp)   
-    print('>>> Similaridade', t.utils.similaridade(y, resp))
-
-    
+    i=0
+    while True:
+        i+=1
+        x_norm = t.aplicar_tensor_padrao(x,x,x)
+        t.aplicar_backward_padrao(x_norm, y)    
+        x_corrigido = t.aplicar_tensor_padrao(x,x,x)        
+        similaridade = t.utils.similaridade(y, x_corrigido)
+        
+        if i%100==0:
+            print("====="*10)
+            print("\tAplicando o backward")
+            print("====="*10)
+            print('>>> Similaridade apos backward', similaridade)
+            print(">>> Similaridade média", similaridade.mean())
+        if similaridade[-1]>= 0.98:
+            break
+    print(f">>> resultado final em {i} steps: ")
