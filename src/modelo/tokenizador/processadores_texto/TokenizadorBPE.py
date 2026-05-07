@@ -10,7 +10,7 @@ class TokenizadorBPE:
         Params:
             max_tam_token: Tamanho máximo do token gerado pelo BPE, por padrão 20 (20 letras)
         '''
-        self.__dataset = Path('src/media/dataset/')        
+        self.__dataset = Path('src/media/dataset/tokenizacao')        
         self.__arquivo_lista_bpe = Path('src/media/dados_processados/lista_bpe.csv')
         self.__arquivo_lista_processados = Path('src/media/dados_processados/lista_arquivos_processados.csv')
         self.max_tam_token = max_tam_token

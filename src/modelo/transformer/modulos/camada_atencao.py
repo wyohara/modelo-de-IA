@@ -1,10 +1,10 @@
 import numpy as np
 from src.modelo.transformer.modulos.ferramentas import normalizador_camada
-from src.modelo.transformer.modulos.ferramentas import normalizador_camada, normalizador_camada_backward
+from src.modelo.transformer.modulos.ferramentas import normalizador_camada, normalizador_camada_backward, criar_mascara_look_ahead
 
 
 class CamadaAtencao:
-    def __init__(self, dim_model:int, num_heads:int, dim_k:int=0, dim_v:int=0, teste=True):
+    def __init__(self, dim_model:int, num_heads:int, dim_k:int=0, dim_v:int=0, mascara=False, teste=True):
         '''
         Camada principal de ativacação da atenção
         Params:
@@ -16,6 +16,7 @@ class CamadaAtencao:
         self.num_heads = num_heads
         self.dim_k = dim_k if dim_k != 0 else dim_model // num_heads
         self.dim_v = dim_v if dim_v != 0 else dim_model // num_heads
+        self.mascara = mascara
 
         self.gamma = np.array([1]*dim_model, dtype=np.float16) # Fator gamma do layernorm, cada dimensão tem seu gamma e layernorm
         self.beta = np.array([0]*dim_model, dtype=np.float16) # Fator beta do layernorm, cada dimensão tem seu beta e layernorm
@@ -47,7 +48,7 @@ class CamadaAtencao:
             V_i = embedding_V @ self.W_V[h]   # (batch, seq_len, d_v)
             
             #Calcula a atenção para cada cabeça
-            atencao_saida, attn_i = self.__calcular_atencao(Q_i, K_i, V_i)
+            atencao_saida, attn_i = self.__calcular_atencao(Q_i, K_i, V_i, self.mascara)
             att_list.append(atencao_saida)
 
             #salvando os dados em uma lista para backward
@@ -157,7 +158,7 @@ class CamadaAtencao:
         d_soma, dgamma, dbeta = normalizador_camada_backward(self.x_soma_residual, dy, self.gamma)
         return d_soma, dgamma, dbeta
     
-    def __calcular_atencao(self, w_q:list, w_k:list, w_v:list)->np.array:
+    def __calcular_atencao(self, w_q:list, w_k:list, w_v:list, mascara:False)->np.array:
         """
         Aplica a formula da atenção escalar por meio de produto escalar.
         Q, K, V: tensores de dimensões (batch, seq_len, d_k)
@@ -169,10 +170,15 @@ class CamadaAtencao:
         else:
             dim_k = self.dim_k
 
+
         # primeira parte da formula softmax(Q*K^T)
         # A transposição ocorre somente na dim_model e dim_k.
         # Isso resulta em uma matriz quadrada
         score_QK = (w_q @ w_k.transpose(0,2,1))/ np.sqrt(dim_k)
+        
+        if mascara:
+            mascara_look_ahead = criar_mascara_look_ahead(w_q.shape[1])
+            score_QK+=mascara_look_ahead
         atencao_normalizada = self.__softmax(score_QK, axis=-1)
         saida = atencao_normalizada @ w_v
         return saida, atencao_normalizada

@@ -26,7 +26,6 @@ def normalizador_camada(x, gamma:np.array, beta:np.array, eps=1e-6):
     x_corrigido = gamma * x_scoreZ + beta
     return x, x_corrigido, media, dp, x_scoreZ, gamma
 
-
 def normalizador_camada_backward(x_corrigido:np.array, dy:np.array, gamma:np.array, eps=1e-6):
     '''
     Backward do normalizador de camada
@@ -49,7 +48,6 @@ def normalizador_camada_backward(x_corrigido:np.array, dy:np.array, gamma:np.arr
     dx = (1. / N / std) * (N * dx_hat - np.sum(dx_hat, axis=-1, keepdims=True) - x_scoreZ * np.sum(dx_hat * x_scoreZ, axis=-1, keepdims=True))
     return dx, dgamma, dbeta
 
-
 def gradiente_perda_mse(resultado:np.array, rotulos_teste:np.array):
     """
     Gera o gradiente de perda d_saida em relação ao rotulo.
@@ -69,12 +67,10 @@ def gradiente_perda_mse(resultado:np.array, rotulos_teste:np.array):
     gradiente_perda = 2 * (resultado - rotulos_teste) / (N * dim_model)
     return gradiente_perda
 
-
 def softmax(x:np.array, axis=-1):
     """Aplica o softmax para normalizar os valores em valores entre 0 e 1."""
     e_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
     return e_x / np.sum(e_x, axis=axis, keepdims=True)
-
 
 def gradiente_perda_cross_entropy(resultado:np.array, rotulos_teste:np.array):
         '''
@@ -103,3 +99,10 @@ def gradiente_perda_cross_entropy(resultado:np.array, rotulos_teste:np.array):
         
         gradiente_perda = probs - y_one_hot
         return gradiente_perda
+
+def criar_mascara_look_ahead(seq_len):
+    # Máscara triangular superior (1s acima da diagonal)
+    mascara = np.triu(np.ones((seq_len, seq_len)), k=1)
+    # Substitui 1 por -inf, 0 permanece 0
+    mascara = np.where(mascara == 1, -np.inf, 0)
+    return mascara  # shape (seq_len, seq_len)
